@@ -126,6 +126,7 @@ namespace LanZouWindow
                     menu.AddItem(new GUIContent("Share"), false, Share, id);
                     menu.AddItem(new GUIContent("Delete"), false, Delete, id);
                     var data = files.Find(_data => { return _data.id == id; });
+                    menu.AddItem(new GUIContent("DownLoad"), false, DownLoad, data);
 
                     if (data.has_des)
                     {
@@ -133,6 +134,14 @@ namespace LanZouWindow
                     }
                     menu.ShowAsContext();
                 }
+       
+                private void DownLoad(object userData)
+                {
+                    DiskData.FileData data = (DiskData.FileData)userData;
+                    DiskTool.DownLoad(data.id,data.name ,true);
+
+                }
+
                 private void Description(object userData)
                 {
                     int id = (int)userData;
@@ -258,6 +267,8 @@ namespace LanZouWindow
                     }
                     menu.ShowAsContext();
                 }
+  
+
                 private void Delete(object userData)
                 {
                     int id = (int)userData;
@@ -372,9 +383,51 @@ namespace LanZouWindow
                 folder = new FolderTree(new TreeViewState());
                 FreshView();
                  sp = new SplitView() { split=400};
-                sp.fistPan += folder.OnGUI;
-                sp.secondPan += file.OnGUI;
+                sp.fistPan += First;
+                sp.secondPan += Second;
+               
+            }
 
+            private void Second(Rect rect)
+            {
+               var rs= rect.HorizontalSplit(20);
+                GUILayout.BeginArea(rs[0], EditorStyles.toolbar);
+                {
+                    GUILayout.BeginHorizontal();
+                    {
+                        GUILayout.Label("Files");
+                        GUILayout.FlexibleSpace();
+                        if (GUILayout.Button(EditorGUIUtility.IconContent("d_CreateAddNew@2x"), EditorStyles.toolbarButton))
+                        {
+
+                        }
+                    }
+                    GUILayout.EndHorizontal();
+        
+                }
+                GUILayout.EndArea();
+                file.OnGUI(rs[1]);
+            }
+
+            private void First(Rect rect)
+            {
+                var rs = rect.HorizontalSplit(20);
+                GUILayout.BeginArea(rs[0], EditorStyles.toolbar);
+                {
+                    GUILayout.BeginHorizontal();
+                    {
+                        GUILayout.Label("Folders");
+                        GUILayout.FlexibleSpace();
+                        if (GUILayout.Button(EditorGUIUtility.IconContent("d_CreateAddNew@2x"), EditorStyles.toolbarButton))
+                        {
+                            DiskTool.NewFolder();
+                        }
+                    }
+                    GUILayout.EndHorizontal();
+              
+                }
+                GUILayout.EndArea();
+                folder.OnGUI(rs[1]);
             }
 
             public override void OnGUI()
@@ -418,20 +471,18 @@ namespace LanZouWindow
                                 DiskTool.GoUp();
                             }
                         }
+                        if (GUILayout.Button(EditorGUIUtility.IconContent("d_TreeEditor.Refresh"), EditorStyles.toolbarButton))
+                        {
+                            DiskTool.FreshCurrent();
+                        }
                         GUILayout.Space(10);
                         using (new EditorGUI.DisabledGroupScope(true))
                         {
                             GUILayout.TextField("Path:"+_window.data.current.path);
                         }
                         GUILayout.FlexibleSpace();
-                        if (GUILayout.Button(EditorGUIUtility.IconContent("d_TreeEditor.Refresh"), EditorStyles.toolbarButton))
-                        {
-                            DiskTool.FreshCurrent();
-                        }
-                        if (GUILayout.Button(EditorGUIUtility.IconContent("d_CreateAddNew@2x"), EditorStyles.toolbarButton))
-                        {
-                            DiskTool.NewFolder();
-                        }
+               
+                
                     }
                     GUILayout.EndHorizontal();
                     if (GUILayout.Button("<", EditorStyles.toolbarButton))
@@ -524,18 +575,20 @@ namespace LanZouWindow
                 var info = lzy.get_share_info(fid, is_file);
                 _window.ShowNotification(new GUIContent(info.desc));
             }
-            public static void DownLoad(long fid, bool is_file = true)
+            public static void DownLoad(long fid, string name,bool is_file = true)
             {
                 if (lzy == null)
                 {
                     Login();
                     return;
                 }
+                string pname = name.Contains(".") ? name.Split('.')[0] : "";
+                string ex = name.Contains(".") ? name.Split('.')[1] : "";
+                var f = EditorUtility.SaveFilePanel("Save", "Assets", pname, ex);
                 var info = lzy.get_share_info(fid, is_file);
-                var f = EditorUtility.OpenFolderPanel("Save", "Assets", "");
-                if (!string.IsNullOrEmpty(f) && System.IO.Directory.Exists(f))
+                if (!string.IsNullOrEmpty(f))
                 {
-                    var code = lzy.down_file_by_url(info.url, f, info.pwd, false, _window.content);
+                    var code = lzy.down_file_by_url(info.url,System.IO.Path.GetDirectoryName(f), info.pwd, false, _window.content);
                     if (code != LanZouCode.SUCCESS)
                     {
                         Log.Error("Down load Err " + code);
@@ -644,6 +697,7 @@ namespace LanZouWindow
                     Debug.LogError(code);
                 }
             }
+
         }
         public class DiskData
         {
