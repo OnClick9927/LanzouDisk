@@ -2,33 +2,15 @@
 using LanZouAPI;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using UnityEditor;
-using UnityEditor.Callbacks;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
 namespace LanZouWindow
 {
-    [CreateAssetMenu]
-    public class LanzouCookie : ScriptableObject
-    {
-        public string ylogin = "";
-        [TextArea(3,8)]
-        public string phpdisk_info = "";
-        [OnOpenAssetAttribute(1)]
-        public static bool step1(int instanceID, int line)
-        {
-            var obj = EditorUtility.InstanceIDToObject(instanceID);
-            if (obj is LanzouCookie)
-            {
-                DiskWindow.cookie = obj as LanzouCookie;
-                var window=EditorWindow. GetWindow<DiskWindow>();
-                return true;
-            }
-            return false; 
-        }
-    }
     partial class DiskWindow
     {
         abstract class Page
@@ -36,7 +18,7 @@ namespace LanZouWindow
             public abstract void OnGUI();
         }
 
-        class ContentPage : Page, IProgress<DownloadInfo>
+        class ContentPage : Page
         {
             class FileTree : TreeView
             {
@@ -399,6 +381,7 @@ namespace LanZouWindow
                         GUILayout.FlexibleSpace();
                         if (GUILayout.Button(EditorGUIUtility.IconContent("d_CreateAddNew@2x"), EditorStyles.toolbarButton))
                         {
+                            DiskTool.UpLoad();
 
                         }
                     }
@@ -436,10 +419,12 @@ namespace LanZouWindow
                 Rect local = new Rect(Vector2.zero, _window.position.size);
 
                 var rs = local.HorizontalSplit(20);
-               
+                var rs1 = rs[1].HorizontalSplit(rs[1].height - 20);
                 ToolBar(rs[0]);
 
-                sp.OnGUI(rs[1]);
+                sp.OnGUI(rs1[0]);
+                GUI.Box(rs1[1], "");
+                EditorGUI.ProgressBar(rs1[1].Zoom(AnchorType.MiddleCenter,-6), progress, progressTxt);
             }
             private void ToolBar(Rect rect)
             {
@@ -481,26 +466,76 @@ namespace LanZouWindow
                             GUILayout.TextField("Path:"+_window.data.current.path);
                         }
                         GUILayout.FlexibleSpace();
-               
-                
+                        if (GUILayout.Button(EditorGUIUtility.IconContent("d_TerrainInspector.TerrainToolSettings"), GUILayout.Width(30)))
+                        {
+                            set = !set;
+                        }
+                        if (set)
+                        {
+                            _window.autoPath = GUILayout.Toggle(_window.autoPath, "Auto",EditorStyles.toolbarButton);
+                            if (GUILayout.Button(EditorGUIUtility.IconContent("Folder Icon"), EditorStyles.toolbarButton, GUILayout.Width(30)))
+                            {
+                                DiskTool.ChooseSavePath();
+                            }
+                            GUILayout.Label("Save:" + _window.rootSavePath);
+                        }
+
                     }
                     GUILayout.EndHorizontal();
-                    if (GUILayout.Button("<", EditorStyles.toolbarButton))
-                    {
-                        DiskTool.GoBack();
-                    }
+                  
                 }
                 GUILayout.EndArea();
             }
-
-            public void Report(DownloadInfo value)
+            private bool set;
+            private string progressTxt="";
+            private float progress;
+            public void ShowProgress(DownloadInfo value)
             {
-                
+                switch (value.state)
+                {
+                    case DownloadInfo.State.Start:
+                    case DownloadInfo.State.Ready:
+                        progress = 0f;
+                        progressTxt = $"DownLoad {value.filename}";
+                        break;
+                    case DownloadInfo.State.Downloading:
+                        progress = value.current / (float)value.total;
+                        progressTxt = $"DownLoad {value.filename} ({value.current / value.total})";
+                        break;
+                    case DownloadInfo.State.Finish:
+                        progressTxt = "";
+                        progress = 0;
+                        break;
+                    default:
+                        break;
+                }
             }
 
-            internal void FinishProgress()
+            public void FinishProgress()
             {
                
+            }
+
+            public void ShowProgress(UploadInfo value)
+            {
+                switch (value.state)
+                {
+                    case UploadInfo.State.Start:
+                    case UploadInfo.State.Ready:
+                        progress = 0f;
+                        progressTxt = $"UpLoad {value.filename}";
+                        break;
+                    case UploadInfo.State.Uploading:
+                        progress = value.current / (float)value.total;
+                        progressTxt = $"UpLoad {value.filename} ({value.current / value.total})";
+                        break;
+                    case UploadInfo.State.Finish:
+                        progressTxt = "";
+                        progress = 0;
+                        break;
+                    default:
+                        break;
+                }
             }
         }
         static class DiskTool
@@ -584,20 +619,51 @@ namespace LanZouWindow
                 }
                 string pname = name.Contains(".") ? name.Split('.')[0] : "";
                 string ex = name.Contains(".") ? name.Split('.')[1] : "";
-                var f = EditorUtility.SaveFilePanel("Save", "Assets", pname, ex);
-                var info = lzy.get_share_info(fid, is_file);
-                if (!string.IsNullOrEmpty(f))
+                string saveDir = "";
+                if (_window.autoPath)
                 {
-                    var code = lzy.down_file_by_url(info.url,System.IO.Path.GetDirectoryName(f), info.pwd, false, _window.content);
+                    saveDir = _window.rootSavePath;
+                }
+                else
+                {
+                    saveDir = EditorUtility.SaveFilePanel("Save", string.IsNullOrEmpty(_window.rootSavePath) ? "Assets" : _window.rootSavePath, pname, ex);
+                    if (string.IsNullOrEmpty(saveDir)) return;
+                }
+                var info = lzy.get_share_info(fid, is_file);
+                Task.Run(() =>
+                {
+                    var code = lzy.down_file_by_url(info.url, saveDir, info.pwd, true, _window.content.ShowProgress);
                     if (code != LanZouCode.SUCCESS)
                     {
                         Log.Error("Down load Err " + code);
                     }
                     _window.content.FinishProgress();
-                }
-               
-            }
+                });
 
+            }
+            public static void UpLoad()
+            {
+                string  saveDir = EditorUtility.OpenFilePanel("Save", string.IsNullOrEmpty(_window.rootSavePath) ? "Assets" : _window.rootSavePath,"");
+                if (!string.IsNullOrEmpty(saveDir) && File.Exists(saveDir))
+                {
+                    Task.Run(() =>
+                    {
+                        var code = lzy.upload_file(saveDir, _window.data.current.id, true, _window.content.ShowProgress);
+                        if (code == LanZouCode.SUCCESS)
+                        {
+                            FreshFolder(_window.data.current.id);
+                            _window.content.FreshView();
+                        }
+                        else
+                        {
+                            Debug.LogError(code);
+                        }
+                        _window.content.FinishProgress();
+                    });
+                   
+
+                }
+            }
    
             public static void GoUp()
             {
@@ -698,6 +764,14 @@ namespace LanZouWindow
                 }
             }
 
+            public static void ChooseSavePath()
+            {
+                var str = EditorUtility.OpenFolderPanel("Save", "Assets", "");
+                if (!string.IsNullOrEmpty(str)&& Directory.Exists(str))
+                {
+                    _window.rootSavePath = str;
+                }
+            }
         }
         public class DiskData
         {
@@ -879,21 +953,29 @@ namespace LanZouWindow
         }
         private DiskData data = new DiskData();
         public static LanzouCookie cookie;
-        public string path = "";
+        public string cookiepath = "";
         private ContentPage content;
         private static DiskWindow _window;
+
+        private string rootSavePath;
+        private bool autoPath = true;
     }
 
     partial class DiskWindow : EditorWindow
     {
+        private const string key0 = "1321321321346DiskWindow598794146555498";
+        private const string key1 = "13213213213465165DiskWindow452123198794146555498";
 
         private void OnEnable()
         {
+            autoPath = EditorPrefs.GetBool(key0, true);
+            rootSavePath = EditorPrefs.GetString(key1, "Assets");
+
             _window = this;
             titleContent = new GUIContent("LanzouDisk");
-            if (!string.IsNullOrEmpty(path))
+            if (!string.IsNullOrEmpty(cookiepath))
             {
-                cookie = AssetDatabase.LoadAssetAtPath<LanzouCookie>(path);
+                cookie = AssetDatabase.LoadAssetAtPath<LanzouCookie>(cookiepath);
             }
             content = new ContentPage();
             DiskTool.Login();
@@ -904,7 +986,9 @@ namespace LanZouWindow
         }
         private void OnDisable()
         {
-            path = AssetDatabase.GetAssetPath(cookie);
+             EditorPrefs.SetBool(key0, autoPath);
+             EditorPrefs.SetString(key1, rootSavePath);
+            cookiepath = AssetDatabase.GetAssetPath(cookie);
         }
         private void OnGUI()
         {
