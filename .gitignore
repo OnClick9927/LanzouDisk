@@ -1,0 +1,13 @@
+Library/
+Logs/
+.vs/
+obj/
+Packages/
+ProjectSettings/
+Temp/
+.vsconfig
+Assembly-CSharp.csproj
+Assembly-CSharp-Editor.csproj
+LanzouDIsk.sln
+Assets/LanzouDisk/Editor/New Lanzou Cookie.asset
+Assets/LanzouDisk/Editor/New Lanzou Cookie.asset.meta
