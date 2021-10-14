@@ -4,104 +4,12 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace LanZouAPI
 {
     public partial class LanZouCloud
     {
-        private string _get(string url, Dictionary<string, string> headers = null, bool allowRedirect = true)
-        {
-            foreach (var possible_url in _all_possible_urls(url))
-            {
-                try
-                {
-                    return _session.GetString(possible_url, headers, 0, allowRedirect);
-                }
-                catch
-                {
-                    Log.Error($"Get {possible_url} failed, try another domain");
-                }
-            }
-            return null;
-        }
-
-        private string _post(string url, Dictionary<string, string> data, Dictionary<string, string> headers = null, bool allowRedirect = true)
-        {
-            foreach (var possible_url in _all_possible_urls(url))
-            {
-                try
-                {
-                    return _session.PostString(possible_url, data, headers, 0, allowRedirect);
-                }
-                catch
-                {
-                    Log.Error($"Post to {possible_url} ({data}) failed, try another domain");
-                }
-            }
-            return null;
-        }
-
-        private string _upload(string url, Dictionary<string, string> data, Stream stream, string filename, string filetag = "file", Action<long, long> progress = null,
-            Dictionary<string, string> headers = null, bool allowRedirect = true)
-        {
-            foreach (var possible_url in _all_possible_urls(url))
-            {
-                try
-                {
-                    return _session.PostUpload(possible_url, data, stream, filename, filetag, progress, headers, 0, allowRedirect);
-                }
-                catch
-                {
-                    Log.Error($"Post to {possible_url} ({data}) failed, try another domain");
-                }
-            }
-            return null;
-        }
-
-        private HttpResponseMessage _get_resp(string url, Dictionary<string, string> headers = null, bool allowRedirect = true,
-            bool headers_only = false)
-        {
-            foreach (var possible_url in _all_possible_urls(url))
-            {
-                try
-                {
-                    return _session.Get(possible_url, headers, 0, allowRedirect, null, headers_only);
-                }
-                catch
-                {
-                    Log.Error($"Get {possible_url} failed, try another domain");
-                }
-            }
-            return null;
-        }
-
-        private string[] available_domains = new string[]
-        {
-            "lanzoui.com",  // 鲁ICP备15001327号-6, 2020-06-09, SEO 排名最低
-            "lanzoux.com",  // 鲁ICP备15001327号-5, 2020-06-09
-            "lanzous.com",  // 主域名, 备案异常, 部分地区已经无法访问
-        };
-
-        /// <summary>
-        /// 蓝奏云的主域名有时会挂掉, 此时尝试切换到备用域名
-        /// </summary>
-        /// <param name="url"></param>
-        /// <returns></returns>
-        private string[] _all_possible_urls(string url)
-        {
-            if (url.Contains("lanzous.com"))
-            {
-                var possible_urls = new string[available_domains.Length];
-                for (int i = 0; i < possible_urls.Length; i++)
-                {
-                    possible_urls[i] = url.Replace("lanzous.com", available_domains[i]);
-                }
-                return possible_urls;
-            }
-            return new string[] { url };
-        }
-
-
         /// <summary>
         /// 删除网页的注释
         /// </summary>
@@ -121,7 +29,7 @@ namespace LanZouAPI
         /// </summary>
         /// <param name="share_url"></param>
         /// <returns></returns>
-        private bool is_file_url(string share_url)
+        private async Task<bool> is_file_url(string share_url)
         {
             var base_pat = "https?://[a-zA-Z0-9-]*?\\.?lanzou[six].com/.+";  // 子域名可个性化设置或者不存在
             var user_pat = "https?://[a-zA-Z0-9-]*?\\.?lanzou[six].com/i[a-zA-Z0-9]{5,}/?";  // 普通用户 URL 规则
@@ -131,7 +39,7 @@ namespace LanZouAPI
                 return true;
 
             // VIP 用户的 URL 很随意
-            var html = _get(share_url);
+            var html = await _get_text(share_url);
             if (string.IsNullOrEmpty(share_url))
                 return false;
 
@@ -139,7 +47,6 @@ namespace LanZouAPI
             if (Regex.Match(html, "class=\"fileinfo\"|id=\"file\"|文件描述").Success)
                 return true;
             return false;
-
         }
 
         public string calc_acw_sc__v2(string html_text)
@@ -225,6 +132,8 @@ namespace LanZouAPI
         {
             if (string.IsNullOrEmpty(text))
                 return LanZouCode.NETWORK_ERROR;
+            if (text.Contains("info\":\"login not"))
+                return LanZouCode.NOT_LOGIN;
             if (!text.Contains("zt\":1"))
                 return LanZouCode.FAILED;
             return LanZouCode.SUCCESS;
@@ -270,7 +179,7 @@ namespace LanZouAPI
                 var current = $"{fname_no_ext}({count}){ext}";
                 if (!fset.Contains(current))
                 {
-                    return Path.Combine(fpath, current);
+                    return Path.Combine(fpath, current).Replace("\\", "/");
                 }
                 count++;
             }
@@ -298,7 +207,5 @@ namespace LanZouAPI
             var ext = Path.GetExtension(filename).Substring(1);
             return valid_suffix_list.Contains(ext);
         }
-
-      
     }
 }
