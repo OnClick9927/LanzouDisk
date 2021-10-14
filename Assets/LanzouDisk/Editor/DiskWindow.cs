@@ -2,6 +2,7 @@ using LanZouAPI;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
@@ -72,6 +73,7 @@ namespace LanZouWindow
                         },
 
                     }));
+                    Reload();
                 }
                 private List<DiskData.FileData> files;
 
@@ -88,15 +90,19 @@ namespace LanZouWindow
                 protected override IList<TreeViewItem> BuildRows(TreeViewItem root)
                 {
                     List<TreeViewItem> rows = new List<TreeViewItem>();
-                    foreach (var item in files)
+                    if (files!=null)
                     {
-                        rows.Add(new TreeViewItem()
+                        foreach (var item in files)
                         {
-                            id = (int)item.id,
-                            depth = 0,
-                            displayName = item.name
-                        });
+                            rows.Add(new TreeViewItem()
+                            {
+                                id = (int)item.id,
+                                depth = 0,
+                                displayName = item.name
+                            });
+                        }
                     }
+                   
                     return rows;
                 }
                 protected override void ContextClickedItem(int id)
@@ -226,6 +232,7 @@ namespace LanZouWindow
                             autoResize=false
                         },
                     }));
+                    Reload();
                 }
 
                 private List<DiskData.FolderData> folders;
@@ -296,14 +303,17 @@ namespace LanZouWindow
                 protected override IList<TreeViewItem> BuildRows(TreeViewItem root)
                 {
                     List<TreeViewItem> rows = new List<TreeViewItem>();
-                    foreach (var item in folders)
+                    if (folders!=null)
                     {
-                        rows.Add(new TreeViewItem()
+                        foreach (var item in folders)
                         {
-                            id = (int)item.id,
-                            depth = 0,
-                            displayName = item.name
-                        });
+                            rows.Add(new TreeViewItem()
+                            {
+                                id = (int)item.id,
+                                depth = 0,
+                                displayName = item.name
+                            });
+                        }
                     }
                     return rows;
                 }
@@ -354,8 +364,11 @@ namespace LanZouWindow
             }
             public void FreshView()
             {
-                folder.ReadFolders(_window.data.current.folders);
-                file.ReadFiles(_window.data.current.files);
+                if (_window.data.current!=null)
+                {
+                    folder.ReadFolders(_window.data.current.folders);
+                    file.ReadFiles(_window.data.current.files);
+                }
             }
             public void Init()
             {
@@ -408,6 +421,7 @@ namespace LanZouWindow
 
                 }
                 GUILayout.EndArea();
+              
                 folder.OnGUI(rs[1]);
             }
 
@@ -419,70 +433,97 @@ namespace LanZouWindow
                 var rs = local.HorizontalSplit(20);
                 var rs1 = rs[1].HorizontalSplit(rs[1].height - 20);
                 ToolBar(rs[0]);
-
+                if (_window.data.current != null) { 
+                
                 sp.OnGUI(rs1[0]);
+                }
+
                 GUI.Box(rs1[1], "");
                 EditorGUI.ProgressBar(rs1[1].Zoom(AnchorType.MiddleCenter, -6), progress, progressTxt);
             }
             private void ToolBar(Rect rect)
             {
-                GUILayout.BeginArea(rect, EditorStyles.toolbar);
+                using(new  EditorGUI.DisabledGroupScope(_window.data.current==null))
                 {
-                    GUILayout.BeginHorizontal();
+                    GUILayout.BeginArea(rect, EditorStyles.toolbar);
                     {
-                        using (new EditorGUI.DisabledGroupScope(!_window.data.CanGoBack()))
+                        GUILayout.BeginHorizontal();
                         {
+                            using (new EditorGUI.DisabledGroupScope(!_window.data.CanGoBack()))
+                            {
 
-                            if (GUILayout.Button(EditorGUIUtility.IconContent("ArrowNavigationLeft"), EditorStyles.toolbarButton))
-                            {
-                                DiskTool.GoBack();
+                                if (GUILayout.Button(EditorGUIUtility.IconContent("ArrowNavigationLeft"), EditorStyles.toolbarButton))
+                                {
+                                    DiskTool.GoBack();
+                                }
                             }
-                        }
-                        using (new EditorGUI.DisabledGroupScope(!_window.data.CanGoFront()))
-                        {
+                            using (new EditorGUI.DisabledGroupScope(!_window.data.CanGoFront()))
+                            {
 
-                            if (GUILayout.Button(EditorGUIUtility.IconContent("ArrowNavigationRight"), EditorStyles.toolbarButton))
-                            {
-                                DiskTool.GoFront();
+                                if (GUILayout.Button(EditorGUIUtility.IconContent("ArrowNavigationRight"), EditorStyles.toolbarButton))
+                                {
+                                    DiskTool.GoFront();
+                                }
                             }
-                        }
-                        using (new EditorGUI.DisabledGroupScope(!_window.data.CanGoUp()))
-                        {
+                            using (new EditorGUI.DisabledGroupScope(!_window.data.CanGoUp()))
+                            {
 
-                            if (GUILayout.Button(EditorGUIUtility.IconContent("d_scrollup"), EditorStyles.toolbarButton))
-                            {
-                                DiskTool.GoUp();
+                                if (GUILayout.Button(EditorGUIUtility.IconContent("d_scrollup"), EditorStyles.toolbarButton))
+                                {
+                                    DiskTool.GoUp();
+                                }
                             }
-                        }
-                        if (GUILayout.Button(EditorGUIUtility.IconContent("d_TreeEditor.Refresh"), EditorStyles.toolbarButton))
-                        {
-                            DiskTool.FreshCurrent();
-                        }
-                        GUILayout.Space(10);
-                        using (new EditorGUI.DisabledGroupScope(true))
-                        {
-                            GUILayout.TextField("Path:" + _window.data.current.path);
-                        }
-                        GUILayout.FlexibleSpace();
-                        if (GUILayout.Button(EditorGUIUtility.IconContent("d_TerrainInspector.TerrainToolSettings"), GUILayout.Width(30)))
-                        {
-                            set = !set;
-                        }
-                        if (set)
-                        {
-                            _window.autoPath = GUILayout.Toggle(_window.autoPath, "Auto", EditorStyles.toolbarButton);
-                            if (GUILayout.Button(EditorGUIUtility.IconContent("Folder Icon"), EditorStyles.toolbarButton, GUILayout.Width(30)))
+                            if (GUILayout.Button(EditorGUIUtility.IconContent("d_TreeEditor.Refresh"), EditorStyles.toolbarButton))
                             {
-                                DiskTool.ChooseSavePath();
+                                DiskTool.FreshCurrent();
                             }
-                            GUILayout.Label("Save:" + _window.rootSavePath);
+                            GUILayout.Space(10);
+                            using (new EditorGUI.DisabledGroupScope(true))
+                            {
+                                var op = GUILayout.MaxWidth(200);
+                                if (_window.data.current!=null)
+                                {
+                                    GUILayout.Label("Path:");
+                                    GUILayout.TextField( _window.data.current.path,op);
+                                }
+                                else
+                                {
+                                    double value = EditorApplication.timeSinceStartup % 3;
+                                    if (value<1)
+                                    {
+                                        GUILayout.TextField("Loading .",op);
+                                    }
+                                    else if (value<2)
+                                    {
+                                        GUILayout.TextField("Loading ..",op);
+                                    }
+                                    else
+                                    {
+                                        GUILayout.TextField("Loading ...",op);
+                                    }
+                                }
+                            }
+                            GUILayout.FlexibleSpace();
+                            if (GUILayout.Button(EditorGUIUtility.IconContent("d_TerrainInspector.TerrainToolSettings"), GUILayout.Width(30)))
+                            {
+                                set = !set;
+                            }
+                            if (set)
+                            {
+                                _window.autoPath = GUILayout.Toggle(_window.autoPath, "Auto", EditorStyles.toolbarButton);
+                                if (GUILayout.Button(EditorGUIUtility.IconContent("Folder Icon"), EditorStyles.toolbarButton, GUILayout.Width(30)))
+                                {
+                                    DiskTool.ChooseSavePath();
+                                }
+                                GUILayout.Label("Save:" + _window.rootSavePath);
+                            }
+
                         }
+                        GUILayout.EndHorizontal();
 
                     }
-                    GUILayout.EndHorizontal();
-
+                    GUILayout.EndArea();
                 }
-                GUILayout.EndArea();
             }
             private bool set;
             private string progressTxt = "";
@@ -498,7 +539,7 @@ namespace LanZouWindow
                         break;
                     case DownloadProgressInfo.State.Downloading:
                         progress = value.current / (float)value.total;
-                        progressTxt = $"DownLoad {value.filename} ({value.current / value.total})";
+                        progressTxt = $"DownLoad {value.filename} ({value.current} / {value.total})";
                         break;
                     case DownloadProgressInfo.State.Finish:
                         progressTxt = "";
@@ -525,7 +566,7 @@ namespace LanZouWindow
                         break;
                     case UploadProgressInfo.State.Uploading:
                         progress = value.current / (float)value.total;
-                        progressTxt = $"UpLoad {value.filename} ({value.current / value.total})";
+                        progressTxt = $"UpLoad {value.filename} ({value.current} /{ value.total})";
                         break;
                     case UploadProgressInfo.State.Finish:
                         progressTxt = "";
@@ -546,7 +587,7 @@ namespace LanZouWindow
             {
                 if (lzy != null)
                 {
-                    lzy.logout();
+                   lzy.logout();
                     lzy = null;
                 }
             }
@@ -570,12 +611,12 @@ namespace LanZouWindow
                 var fs = await lzy.get_file_list(-1);
                 _window.data.ReadRoot(root.folders, fs.files);
             }
-            public static void FreshCurrent()
+            public async static void FreshCurrent()
             {
-                FreshFolder(_window.data.current.id);
+                 await FreshFolder(_window.data.current.id);
                 _window.content.FreshView();
             }
-            public static async void FreshFolder(long id)
+            public static async Task FreshFolder(long id)
             {
                 if (lzy == null)
                 {
@@ -644,7 +685,7 @@ namespace LanZouWindow
                     var code = await lzy.upload_file(saveDir, _window.data.current.id, true, _window.content.ShowProgress);
                     if (code.code == LanZouCode.SUCCESS)
                     {
-                        FreshFolder(_window.data.current.id);
+                        await FreshFolder(_window.data.current.id);
                         _window.content.FreshView();
                     }
                     else
@@ -687,7 +728,7 @@ namespace LanZouWindow
                 var code = await lzy.rename_file(file_id, filename);
                 if (code == LanZouCode.SUCCESS)
                 {
-                    FreshFolder(_window.data.current.id);
+                    await FreshFolder(_window.data.current.id);
                     _window.content.FreshView();
                 }
                 else
@@ -706,7 +747,7 @@ namespace LanZouWindow
                 var code = await lzy.rename_dir(folder_id, folder_name);
                 if (code == LanZouCode.SUCCESS)
                 {
-                    FreshFolder(_window.data.current.id);
+                  await  FreshFolder(_window.data.current.id);
                     _window.content.FreshView();
                 }
                 else
@@ -726,7 +767,7 @@ namespace LanZouWindow
                 var code = await lzy.mkdir("NewFolder", _window.data.current.id);
                 if (code.code == LanZouCode.SUCCESS)
                 {
-                    FreshFolder(_window.data.current.id);
+                   await FreshFolder(_window.data.current.id);
                     _window.content.FreshView();
                 }
                 else
@@ -745,7 +786,7 @@ namespace LanZouWindow
                 var code = await lzy.delete(fid, is_file);
                 if (code == LanZouCode.SUCCESS)
                 {
-                    FreshFolder(_window.data.current.id);
+                   await FreshFolder(_window.data.current.id);
                     _window.content.FreshView();
                 }
                 else
@@ -823,32 +864,39 @@ namespace LanZouWindow
                 }
             }
             public Root root;
-            public void ReadRoot(List<CloudFolder> folders, List<CloudFile> fs)
+            public async void ReadRoot(List<CloudFolder> folders, List<CloudFile> fs)
             {
                 root = new Root() { id = -1, path = "Root" };
                 root.Clear();
-                root.folders = folders.ConvertAll(data =>
+                if (folders!=null)
                 {
-                    FolderData _data = data;
-                    _data.pid = -1;
-                    _data.path = root.path + "/" + _data.name;
-                    return _data;
-                });
-                root.files = fs.ConvertAll(data =>
+                    root.folders = folders.ConvertAll(data =>
+                    {
+                        FolderData _data = data;
+                        _data.pid = -1;
+                        _data.path = root.path + "/" + _data.name;
+                        return _data;
+                    });
+                }
+                if (fs!=null)
                 {
-                    FileData _data = data;
-                    return _data;
-                });
+                    root.files = fs.ConvertAll(data =>
+                    {
+                        FileData _data = data;
+                        return _data;
+                    });
+                }
+
                 root.allfiles.AddRange(root.files);
                 root.allfolders.AddRange(root.folders);
                 root.allfolders.Add(root);
                 for (int i = 0; i < root.folders.Count; i++)
                 {
-                    DiskTool.FreshFolder(root.folders[i].id);
+                  await  DiskTool.FreshFolder(root.folders[i].id);
                 }
                 SetCurrentFolder(-1);
             }
-            public void FreshFolder(long id, List<CloudFolder> folders, List<CloudFile> fs)
+            public async void FreshFolder(long id, List<CloudFolder> folders, List<CloudFile> fs)
             {
 
                 FolderData _f = root.allfolders.Find(_data => { return _data.id == id; });
@@ -857,24 +905,31 @@ namespace LanZouWindow
                     Debug.LogError("not find dolder " + id);
                     return;
                 }
-                _f.folders = folders.ConvertAll(data =>
+                if (folders!=null)
                 {
-                    FolderData _data = data;
-                    _data.pid = _f.id;
-                    _data.path = _f.path + "/" + _data.name;
-                    return _data;
-                });
-                _f.files = fs.ConvertAll(data =>
+                    _f.folders = folders.ConvertAll(data =>
+                    {
+                        FolderData _data = data;
+                        _data.pid = _f.id;
+                        _data.path = _f.path + "/" + _data.name;
+                        return _data;
+                    });
+                }
+                if (fs!=null)
                 {
-                    FileData _data = data;
-                    return _data;
-                });
+                    _f.files = fs.ConvertAll(data =>
+                    {
+                        FileData _data = data;
+                        return _data;
+                    });
+                }
+               
 
                 root.allfiles.AddRange(_f.files);
                 root.allfolders.AddRange(_f.folders);
                 for (int i = 0; i < _f.folders.Count; i++)
                 {
-                    DiskTool.FreshFolder(_f.folders[i].id);
+                 await   DiskTool.FreshFolder(_f.folders[i].id);
                 }
             }
             public void SetCurrentFolder(long id)
@@ -895,7 +950,10 @@ namespace LanZouWindow
                 stack.Push(data);
                 current = stack.Peek();
             }
-            public FolderData current;
+            public FolderData current { get { return _current; }private set { _current = value;
+                    _window.content.FreshView();
+                } 
+            }
 
             public bool CanGoUp()
             {
@@ -930,6 +988,7 @@ namespace LanZouWindow
             }
             private Stack<FolderData> memory = new Stack<FolderData>();
             private Stack<FolderData> stack = new Stack<FolderData>();
+            private FolderData _current;
 
             public bool isroot { get { return current == root; } }
 
