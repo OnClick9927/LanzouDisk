@@ -1,4 +1,5 @@
 using LanZouAPI;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,17 +7,13 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
+using static LanZouWindow.DiskWindow.DiskData;
 
 namespace LanZouWindow
 {
     partial class DiskWindow
     {
-        abstract class Page
-        {
-            public abstract void OnGUI();
-        }
-
-        class ContentPage : Page
+        class ContentPage 
         {
             class FileTree : TreeView
             {
@@ -76,6 +73,7 @@ namespace LanZouWindow
                     Reload();
                 }
                 private List<DiskData.FileData> files;
+                private  DiskTool tool { get { return _window.tool; } }
 
                 public void ReadFiles(List<DiskData.FileData> files)
                 {
@@ -124,7 +122,7 @@ namespace LanZouWindow
                 private void DownLoad(object userData)
                 {
                     DiskData.FileData data = (DiskData.FileData)userData;
-                    DiskTool.DownLoad(data.id, data.name, true);
+                    tool.DownLoad(data.id, data.name, true);
 
                 }
 
@@ -132,19 +130,19 @@ namespace LanZouWindow
                 {
                     int id = (int)userData;
 
-                    DiskTool.ShowDescription(id, false);
+                    tool.ShowDescription(id, false);
 
                 }
                 private void Delete(object userData)
                 {
                     int id = (int)userData;
-                    DiskTool.Delete((int)userData, true);
+                    tool.Delete((int)userData, true);
 
                 }
 
                 private void Share(object userData)
                 {
-                    DiskTool.Share((int)userData, true);
+                    tool.Share((int)userData, true);
                 }
 
                 private void OpenRename(object userData)
@@ -194,7 +192,7 @@ namespace LanZouWindow
                 {
                     if (args.acceptedRename && args.originalName != args.newName && !string.IsNullOrEmpty(args.newName))
                     {
-                        DiskTool.RenameFile(args.itemID, args.newName);
+                        tool.RenameFile(args.itemID, args.newName);
                     }
                 }
                 protected override bool CanRename(TreeViewItem item)
@@ -236,6 +234,8 @@ namespace LanZouWindow
                 }
 
                 private List<DiskData.FolderData> folders;
+                private DiskTool tool { get { return _window.tool; } }
+
                 public void ReadFolders(List<DiskData.FolderData> folders)
                 {
                     this.folders = folders;
@@ -259,20 +259,20 @@ namespace LanZouWindow
                 private void Delete(object userData)
                 {
                     int id = (int)userData;
-                    DiskTool.Delete((int)userData, false);
+                    tool.Delete((int)userData, false);
 
                 }
                 private void Description(object userData)
                 {
                     int id = (int)userData;
 
-                    DiskTool.ShowDescription(id, false);
+                    tool.ShowDescription(id, false);
 
                 }
 
                 private void Share(object userData)
                 {
-                    DiskTool.Share((int)userData, false);
+                    tool.Share((int)userData, false);
                 }
 
                 private void OpenRename(object userData)
@@ -289,7 +289,7 @@ namespace LanZouWindow
                 {
                     if (args.acceptedRename && args.originalName != args.newName && !string.IsNullOrEmpty(args.newName))
                     {
-                        DiskTool.RenameFolder(args.itemID, args.newName);
+                        tool.RenameFolder(args.itemID, args.newName);
                     }
                 }
                 protected override bool CanRename(TreeViewItem item)
@@ -319,7 +319,7 @@ namespace LanZouWindow
                 }
                 protected override void DoubleClickedItem(int id)
                 {
-                    DiskTool.OpenFolder(id);
+                    tool.OpenFolder(id);
                 }
                 protected override void RowGUI(RowGUIArgs args)
                 {
@@ -358,19 +358,8 @@ namespace LanZouWindow
             private FolderTree folder;
             private FileTree file;
             private SplitView sp;
+            private DiskTool tool { get { return _window.tool; } }
             public ContentPage()
-            {
-
-            }
-            public void FreshView()
-            {
-                if (_window.data.current != null)
-                {
-                    folder.ReadFolders(_window.data.current.folders);
-                    file.ReadFiles(_window.data.current.files);
-                }
-            }
-            public void Init()
             {
                 file = new FileTree(new TreeViewState());
                 folder = new FolderTree(new TreeViewState());
@@ -378,9 +367,20 @@ namespace LanZouWindow
                 sp = new SplitView() { split = 400 };
                 sp.fistPan += First;
                 sp.secondPan += Second;
-
             }
-
+            public void FreshView()
+            {
+                if (tool.current != null)
+                {
+                    folder.ReadFolders(tool.current.folders);
+                    file.ReadFiles(tool.current.files);
+                }
+                else
+                {
+                    folder.ReadFolders(new List<FolderData>());
+                    file.ReadFiles(new List<FileData>());
+                }
+            }
             private void Second(Rect rect)
             {
                 var rs = rect.HorizontalSplit(20);
@@ -392,8 +392,7 @@ namespace LanZouWindow
                         GUILayout.FlexibleSpace();
                         if (GUILayout.Button(EditorGUIUtility.IconContent("d_CreateAddNew@2x"), EditorStyles.toolbarButton))
                         {
-                            DiskTool.UpLoad();
-
+                            tool.UpLoad();
                         }
                     }
                     GUILayout.EndHorizontal();
@@ -414,7 +413,7 @@ namespace LanZouWindow
                         GUILayout.FlexibleSpace();
                         if (GUILayout.Button(EditorGUIUtility.IconContent("d_CreateAddNew@2x"), EditorStyles.toolbarButton))
                         {
-                            DiskTool.NewFolder();
+                            tool.NewFolder();
                         }
                     }
                     GUILayout.EndHorizontal();
@@ -425,166 +424,18 @@ namespace LanZouWindow
                 folder.OnGUI(rs[1]);
             }
 
-            public override void OnGUI()
+            public void OnGUI(Rect rect)
             {
-
-                Rect local = new Rect(Vector2.zero, _window.position.size);
-
-                var rs = local.HorizontalSplit(20);
-                var rs1 = rs[1].HorizontalSplit(rs[1].height - 20);
-                ToolBar(rs[0]);
-                if (_window.data.current != null)
-                {
-
-                    sp.OnGUI(rs1[0]);
-                }
-
-                GUI.Box(rs1[1], "");
-                EditorGUI.ProgressBar(rs1[1].Zoom(AnchorType.MiddleCenter, -6), progress, progressTxt);
-            }
-            private void ToolBar(Rect rect)
-            {
-                using (new EditorGUI.DisabledGroupScope(_window.data.current == null))
-                {
-                    GUILayout.BeginArea(rect, EditorStyles.toolbar);
-                    {
-                        GUILayout.BeginHorizontal();
-                        {
-                            using (new EditorGUI.DisabledGroupScope(!_window.data.CanGoBack()))
-                            {
-
-                                if (GUILayout.Button(EditorGUIUtility.IconContent("ArrowNavigationLeft"), EditorStyles.toolbarButton))
-                                {
-                                    DiskTool.GoBack();
-                                }
-                            }
-                            using (new EditorGUI.DisabledGroupScope(!_window.data.CanGoFront()))
-                            {
-
-                                if (GUILayout.Button(EditorGUIUtility.IconContent("ArrowNavigationRight"), EditorStyles.toolbarButton))
-                                {
-                                    DiskTool.GoFront();
-                                }
-                            }
-                            using (new EditorGUI.DisabledGroupScope(!_window.data.CanGoUp()))
-                            {
-
-                                if (GUILayout.Button(EditorGUIUtility.IconContent("d_scrollup"), EditorStyles.toolbarButton))
-                                {
-                                    DiskTool.GoUp();
-                                }
-                            }
-                            if (GUILayout.Button(EditorGUIUtility.IconContent("d_TreeEditor.Refresh"), EditorStyles.toolbarButton))
-                            {
-                                DiskTool.FreshCurrent();
-                            }
-                            GUILayout.Space(10);
-                            using (new EditorGUI.DisabledGroupScope(true))
-                            {
-                                var op = GUILayout.MaxWidth(200);
-                                if (_window.data.current != null)
-                                {
-                                    GUILayout.Label("Path:");
-                                    GUILayout.TextField(_window.data.current.path, op);
-                                }
-                                else
-                                {
-                                    double value = EditorApplication.timeSinceStartup % 3;
-                                    if (value < 1)
-                                    {
-                                        GUILayout.TextField("Loading .", op);
-                                    }
-                                    else if (value < 2)
-                                    {
-                                        GUILayout.TextField("Loading ..", op);
-                                    }
-                                    else
-                                    {
-                                        GUILayout.TextField("Loading ...", op);
-                                    }
-                                }
-                            }
-                            GUILayout.FlexibleSpace();
-                            if (GUILayout.Button(EditorGUIUtility.IconContent("d_TerrainInspector.TerrainToolSettings"), GUILayout.Width(30)))
-                            {
-                                set = !set;
-                            }
-                            if (set)
-                            {
-                                _window.autoPath = GUILayout.Toggle(_window.autoPath, "Auto", EditorStyles.toolbarButton);
-                                if (GUILayout.Button(EditorGUIUtility.IconContent("Folder Icon"), EditorStyles.toolbarButton, GUILayout.Width(30)))
-                                {
-                                    DiskTool.ChooseSavePath();
-                                }
-                                GUILayout.Label("Save:" + _window.rootSavePath);
-                            }
-
-                        }
-                        GUILayout.EndHorizontal();
-
-                    }
-                    GUILayout.EndArea();
-                }
-            }
-            private bool set;
-            private string progressTxt = "";
-            private float progress;
-            public void ShowProgress(DownloadProgressInfo value)
-            {
-                switch (value.state)
-                {
-                    case DownloadProgressInfo.State.Start:
-                    case DownloadProgressInfo.State.Ready:
-                        progress = 0f;
-                        progressTxt = $"DownLoad {value.filename}";
-                        break;
-                    case DownloadProgressInfo.State.Downloading:
-                        progress = value.current / (float)value.total;
-                        progressTxt = $"DownLoad {value.filename} ({value.current} / {value.total})";
-                        break;
-                    case DownloadProgressInfo.State.Finish:
-                        progressTxt = "";
-                        progress = 0;
-                        break;
-                    default:
-                        break;
-                }
+                sp.OnGUI(rect);
             }
 
-            public void FinishProgress()
-            {
 
-            }
-
-            public void ShowProgress(UploadProgressInfo value)
-            {
-                switch (value.state)
-                {
-                    case UploadProgressInfo.State.Start:
-                    case UploadProgressInfo.State.Ready:
-                        progress = 0f;
-                        progressTxt = $"UpLoad {value.filename}";
-                        break;
-                    case UploadProgressInfo.State.Uploading:
-                        progress = value.current / (float)value.total;
-                        progressTxt = $"UpLoad {value.filename} ({value.current} /{ value.total})";
-                        break;
-                    case UploadProgressInfo.State.Finish:
-                        progressTxt = "";
-                        progress = 0;
-                        break;
-                    default:
-                        break;
-                }
-            }
+   
+           
         }
-        static class DiskTool
+        class DiskTool
         {
-            public static void Quit()
-            {
-                _window.Close();
-            }
-            public static void OnQuit()
+            public void OnQuit()
             {
                 if (lzy != null)
                 {
@@ -592,71 +443,51 @@ namespace LanZouWindow
                     lzy = null;
                 }
             }
-            private static LanZouCloud lzy;
-            public static async void Login()
+            public async void Login()
             {
                 lzy = new LanZouCloud();
-                var result = await lzy.login_by_cookie(_window.data.ylogin, _window.data.phpdisk_info);
+                var result = await lzy.login_by_cookie(cookie.ylogin, cookie.phpdisk_info);
                 if (result != LanZouCode.SUCCESS) return;
-                FreshData();
-                _window.content.Init();
-            }
-            public static async void FreshData()
-            {
-                if (lzy == null)
+                async void FreshData()
                 {
-                    Login();
-                    return;
+                    var root = await lzy.get_folder_list(-1);
+                    var fs = await lzy.get_file_list(-1);
+                    await _window.data.ReadRoot(root.folders, fs.files);
+                    SetCurrentFolder(-1);
                 }
-                var root = await lzy.get_folder_list(-1);
-                var fs = await lzy.get_file_list(-1);
-                _window.data.ReadRoot(root.folders, fs.files);
+                FreshData();
             }
-            public async static void FreshCurrent()
+            private LanZouCloud lzy;
+            private void FreshContent()
             {
-                await FreshFolder(_window.data.current.id);
                 _window.content.FreshView();
             }
-            public static async Task FreshFolder(long id)
+            public async Task FreshFolder(long id)
             {
-                if (lzy == null)
-                {
-                    Login();
-                    return;
-                }
                 var ds = await lzy.get_folder_list(id);
                 var fs = await lzy.get_file_list(id);
                 _window.data.FreshFolder(id, ds.folders, fs.files);
             }
 
-            public static async void Share(long fid, bool is_file = true)
+            public async void FreshCurrent()
             {
-                if (lzy == null)
-                {
-                    Login();
-                    return;
-                }
+                await FreshFolder(current.id);
+                FreshContent();
+            }
+
+            public  async void Share(long fid, bool is_file = true)
+            {
                 var info = await lzy.get_share_info(fid, is_file);
                 GUIUtility.systemCopyBuffer = $"名字：{info.name}\n链接：{info.url}\n提取码：{info.pwd}\n描述：{info.desc}";
                 _window.ShowNotification(new GUIContent("提取方式已复制到粘贴板"));
             }
-            public static async void ShowDescription(long fid, bool is_file = true)
+            public  async void ShowDescription(long fid, bool is_file = true)
             {
-                if (lzy == null)
-                {
-                    Login();
-                    return;
-                }
                 var info = await lzy.get_share_info(fid, is_file);
                 _window.ShowNotification(new GUIContent(info.desc));
             }
-            public static async void DownLoad(long fid, string name, bool is_file = true)
+            public  async void DownLoad(long fid, string name, bool is_file = true)
             {
-                if (lzy == null)
-                {
-                    Login();
-                    return;
-                }
                 string pname = name.Contains(".") ? name.Split('.')[0] : "";
                 string ex = name.Contains(".") ? name.Split('.')[1] : "";
                 string saveDir = "";
@@ -670,67 +501,42 @@ namespace LanZouWindow
                     if (string.IsNullOrEmpty(saveDir)) return;
                 }
                 var info = await lzy.get_share_info(fid, is_file);
-                var code = await lzy.down_file_by_url(info.url, saveDir, info.pwd, true, null);
+                var code = await lzy.down_file_by_url(info.url, saveDir, info.pwd, true, _window);
                 if (code.code != LanZouCode.SUCCESS)
                 {
                     Debug.LogError("Down load Err " + code);
                 }
-                _window.content.FinishProgress();
-
             }
-            public static async void UpLoad()
+            public  async void UpLoad()
             {
                 string saveDir = EditorUtility.OpenFilePanel("Save", string.IsNullOrEmpty(_window.rootSavePath) ? "Assets" : _window.rootSavePath, "");
                 if (!string.IsNullOrEmpty(saveDir) && File.Exists(saveDir))
                 {
-                    var code = await lzy.upload_file(saveDir, _window.data.current.id, true, null);
+                    var code = await lzy.upload_file(saveDir,current.id, true, _window);
                     if (code.code == LanZouCode.SUCCESS)
                     {
-                        await FreshFolder(_window.data.current.id);
-                        _window.content.FreshView();
+                        await FreshFolder(current.id);
+                        FreshContent();
                     }
                     else
                     {
                         Debug.LogError(code);
                     }
-                    _window.content.FinishProgress();
                 }
             }
 
-            public static void GoUp()
+            public  void OpenFolder(int id)
             {
-                _window.data.GoUp();
-                _window.content.FreshView();
+                SetCurrentFolder(id);
+                FreshContent();
             }
-            public static void GoBack()
+            public  async void RenameFile(long file_id, string filename)
             {
-                _window.data.GoBack();
-                _window.content.FreshView();
-
-            }
-            public static void GoFront()
-            {
-                _window.data.GoFront();
-                _window.content.FreshView();
-
-            }
-            public static void OpenFolder(int id)
-            {
-                _window.data.SetCurrentFolder(id);
-                _window.content.FreshView();
-            }
-            public static async void RenameFile(long file_id, string filename)
-            {
-                if (lzy == null)
-                {
-                    Login();
-                    return;
-                }
                 var code = await lzy.rename_file(file_id, filename);
                 if (code == LanZouCode.SUCCESS)
                 {
-                    await FreshFolder(_window.data.current.id);
-                    _window.content.FreshView();
+                    await FreshFolder(current.id);
+                    FreshContent();
                 }
                 else
                 {
@@ -738,18 +544,13 @@ namespace LanZouWindow
                 }
 
             }
-            public static async void RenameFolder(long folder_id, string folder_name)
+            public  async void RenameFolder(long folder_id, string folder_name)
             {
-                if (lzy == null)
-                {
-                    Login();
-                    return;
-                }
                 var code = await lzy.rename_dir(folder_id, folder_name);
                 if (code == LanZouCode.SUCCESS)
                 {
-                    await FreshFolder(_window.data.current.id);
-                    _window.content.FreshView();
+                    await FreshFolder(current.id);
+                    FreshContent();
                 }
                 else
                 {
@@ -757,19 +558,13 @@ namespace LanZouWindow
                 }
 
             }
-            public static async void NewFolder()
+            public  async void NewFolder()
             {
-                if (lzy == null)
-                {
-                    Login();
-                    return;
-                }
-
-                var code = await lzy.mkdir("NewFolder", _window.data.current.id);
+                var code = await lzy.mkdir("NewFolder",current.id);
                 if (code.code == LanZouCode.SUCCESS)
                 {
-                    await FreshFolder(_window.data.current.id);
-                    _window.content.FreshView();
+                    await FreshFolder(current.id);
+                    FreshContent();
                 }
                 else
                 {
@@ -777,18 +572,13 @@ namespace LanZouWindow
                 }
             }
 
-            public static async void Delete(long fid, bool is_file)
+            public  async void Delete(long fid, bool is_file)
             {
-                if (lzy == null)
-                {
-                    Login();
-                    return;
-                }
                 var code = await lzy.delete(fid, is_file);
                 if (code == LanZouCode.SUCCESS)
                 {
-                    await FreshFolder(_window.data.current.id);
-                    _window.content.FreshView();
+                    await FreshFolder(current.id);
+                    FreshContent();
                 }
                 else
                 {
@@ -796,7 +586,7 @@ namespace LanZouWindow
                 }
             }
 
-            public static void ChooseSavePath()
+            public  void ChooseSavePath()
             {
                 var str = EditorUtility.OpenFolderPanel("Save", "Assets", "");
                 if (!string.IsNullOrEmpty(str) && Directory.Exists(str))
@@ -804,9 +594,71 @@ namespace LanZouWindow
                     _window.rootSavePath = str;
                 }
             }
+
+
+            private  Stack<FolderData> memory = new Stack<FolderData>();
+            private  Stack<FolderData> stack = new Stack<FolderData>();
+            private  FolderData _current;
+            public  FolderData current
+            {
+                get { return _current; }
+                set
+                {
+                    _current = value;
+                    FreshContent();
+                }
+            }
+            public  void SetCurrentFolder(long id)
+            {
+                FolderData data = _window.data.FindFolderById(id);
+                if (memory.Count != 0)
+                {
+                    memory.Clear();
+                }
+                stack.Push(data);
+                current = stack.Peek();
+            }
+            public  bool CanGoUp()
+            {
+                return !_window.data.IsRootFolder(current);
+            }
+            public  bool CanGoBack()
+            {
+                return stack.Count > 1;
+            }
+            public  bool CanGoFront()
+            {
+                return memory.Count > 0;
+            }
+            public  void GoUp()
+            {
+                if (_window.data.IsRootFolder(current)) return;
+                SetCurrentFolder(current.pid);
+                FreshContent();
+            }
+            public  void GoBack()
+            {
+                if (stack.Count <= 1) return;
+                var data = stack.Pop();
+                memory.Push(data);
+                current = stack.Peek();
+                FreshContent();
+
+            }
+            public  void GoFront()
+            {
+                if (memory.Count <= 0) return;
+                var data = memory.Pop();
+                stack.Push(data);
+                current = stack.Peek();
+                FreshContent();
+            }
+
         }
         public class DiskData
         {
+            private DiskTool tool { get { return _window.tool; } }
+
             public class FileData
             {
                 public long id;
@@ -864,8 +716,17 @@ namespace LanZouWindow
                     allfiles.Clear();
                 }
             }
-            public Root root;
-            public async void ReadRoot(List<CloudFolder> folders, List<CloudFile> fs)
+            private Root root;
+            public bool IsRootFolder(FolderData data)
+            {
+                return data == _window.data.root;
+            }
+            public FolderData FindFolderById(long id)
+            {
+                if (id == -1) return root;
+                return root.allfolders.Find(_data => { return _data.id == id; });
+            }
+            public async Task ReadRoot(List<CloudFolder> folders, List<CloudFile> fs)
             {
                 root = new Root() { id = -1, path = "Root" };
                 root.Clear();
@@ -893,9 +754,8 @@ namespace LanZouWindow
                 root.allfolders.Add(root);
                 for (int i = 0; i < root.folders.Count; i++)
                 {
-                    await DiskTool.FreshFolder(root.folders[i].id);
+                    await tool.FreshFolder(root.folders[i].id);
                 }
-                SetCurrentFolder(-1);
             }
             public async void FreshFolder(long id, List<CloudFolder> folders, List<CloudFile> fs)
             {
@@ -930,95 +790,23 @@ namespace LanZouWindow
                 root.allfolders.AddRange(_f.folders);
                 for (int i = 0; i < _f.folders.Count; i++)
                 {
-                    await DiskTool.FreshFolder(_f.folders[i].id);
+                    await tool.FreshFolder(_f.folders[i].id);
                 }
             }
-            public void SetCurrentFolder(long id)
-            {
-                FolderData data = null;
-                if (id == -1)
-                {
-                    data = root;
-                }
-                else
-                {
-                    data = root.allfolders.Find(_data => { return _data.id == id; });
-                }
-                if (memory.Count != 0)
-                {
-                    memory.Clear();
-                }
-                stack.Push(data);
-                current = stack.Peek();
-            }
-            public FolderData current
-            {
-                get { return _current; }
-                private set
-                {
-                    _current = value;
-                    _window.content.FreshView();
-                }
-            }
-
-            public bool CanGoUp()
-            {
-                return !isroot;
-            }
-            public bool CanGoBack()
-            {
-                return stack.Count > 1;
-            }
-            public bool CanGoFront()
-            {
-                return memory.Count > 0;
-            }
-            public void GoUp()
-            {
-                if (isroot) return;
-                SetCurrentFolder(current.pid);
-            }
-            public void GoBack()
-            {
-                if (stack.Count <= 1) return;
-                var data = stack.Pop();
-                memory.Push(data);
-                current = stack.Peek();
-            }
-            public void GoFront()
-            {
-                if (memory.Count <= 0) return;
-                var data = memory.Pop();
-                stack.Push(data);
-                current = stack.Peek();
-            }
-            private Stack<FolderData> memory = new Stack<FolderData>();
-            private Stack<FolderData> stack = new Stack<FolderData>();
-            private FolderData _current;
-
-            public bool isroot { get { return current == root; } }
-
-            public string ylogin { get { return cookie.ylogin; } }
-            public string phpdisk_info
-            {
-                get
-                {
-                    return cookie.phpdisk_info;
-                }
-
-            }
+         
         }
         private DiskData data = new DiskData();
+        private DiskTool tool;
         public static LanzouCookie cookie;
+        private static DiskWindow _window;
         public string cookiepath = "";
         private ContentPage content;
-        private static DiskWindow _window;
 
         private string rootSavePath;
         private bool autoPath = true;
     }
 
-    partial class DiskWindow : EditorWindow
+    partial class DiskWindow : EditorWindow, IProgress<DownloadProgressInfo>, IProgress<UploadProgressInfo>
     {
         private const string key0 = "1321321321346DiskWindow598794146555498";
         private const string key1 = "13213213213465165DiskWindow452123198794146555498";
@@ -1034,22 +822,226 @@ namespace LanZouWindow
             {
                 cookie = AssetDatabase.LoadAssetAtPath<LanzouCookie>(cookiepath);
             }
+            tool = new DiskWindow.DiskTool();
             content = new ContentPage();
-            DiskTool.Login();
-        }
-        private void OnDestroy()
-        {
-            DiskTool.OnQuit();
+            tool.Login();
         }
         private void OnDisable()
         {
             EditorPrefs.SetBool(key0, autoPath);
             EditorPrefs.SetString(key1, rootSavePath);
             cookiepath = AssetDatabase.GetAssetPath(cookie);
+            tool.OnQuit();
         }
         private void OnGUI()
         {
-            content.OnGUI();
+            var local = new Rect(Vector2.zero, position.size);
+            var rs = local.HorizontalSplit(20);
+            var rs1 = rs[1].HorizontalSplit(rs[1].height - 20);
+            ToolBar(rs[0]);
+            content.OnGUI(rs1[0]);
+            EditorGUI.ProgressBar(rs1[1].Zoom(AnchorType.MiddleCenter, -6), progress, progressTxt);
+            DownLoadProgress();
+            UpLoadProgress();
+            if (repaint) Repaint();
+
+        }
+
+        private void ToolBar(Rect rect)
+        {
+            using (new EditorGUI.DisabledGroupScope(tool.current == null))
+            {
+                GUILayout.BeginArea(rect, EditorStyles.toolbar);
+                {
+                    GUILayout.BeginHorizontal();
+                    {
+                        using (new EditorGUI.DisabledGroupScope(!tool.CanGoBack()))
+                        {
+
+                            if (GUILayout.Button(EditorGUIUtility.IconContent("ArrowNavigationLeft"), EditorStyles.toolbarButton))
+                            {
+                                tool.GoBack();
+                            }
+                        }
+                        using (new EditorGUI.DisabledGroupScope(!tool.CanGoFront()))
+                        {
+
+                            if (GUILayout.Button(EditorGUIUtility.IconContent("ArrowNavigationRight"), EditorStyles.toolbarButton))
+                            {
+                                tool.GoFront();
+                            }
+                        }
+                        using (new EditorGUI.DisabledGroupScope(!tool.CanGoUp()))
+                        {
+
+                            if (GUILayout.Button(EditorGUIUtility.IconContent("d_scrollup"), EditorStyles.toolbarButton))
+                            {
+                                tool.GoUp();
+                            }
+                        }
+                        if (GUILayout.Button(EditorGUIUtility.IconContent("d_TreeEditor.Refresh"), EditorStyles.toolbarButton))
+                        {
+                            tool.FreshCurrent();
+                        }
+                        GUILayout.Space(10);
+                        using (new EditorGUI.DisabledGroupScope(true))
+                        {
+                            var op = GUILayout.MaxWidth(200);
+                            if (tool.current != null)
+                            {
+                                GUILayout.Label("Path:");
+                                GUILayout.TextField(tool.current.path, op);
+                            }
+                            else
+                            {
+                                double value = EditorApplication.timeSinceStartup % 3;
+                                if (value < 1)
+                                {
+                                    GUILayout.TextField("Loading .", op);
+                                }
+                                else if (value < 2)
+                                {
+                                    GUILayout.TextField("Loading ..", op);
+                                }
+                                else
+                                {
+                                    GUILayout.TextField("Loading ...", op);
+                                }
+                            }
+                        }
+                        GUILayout.FlexibleSpace();
+                        if (GUILayout.Button(EditorGUIUtility.IconContent("d_TerrainInspector.TerrainToolSettings"), GUILayout.Width(30)))
+                        {
+                            set = !set;
+                        }
+                        if (set)
+                        {
+                            _window.autoPath = GUILayout.Toggle(_window.autoPath, "Auto", EditorStyles.toolbarButton);
+                            if (GUILayout.Button(EditorGUIUtility.IconContent("Folder Icon"), EditorStyles.toolbarButton, GUILayout.Width(30)))
+                            {
+                                tool.ChooseSavePath();
+                            }
+                            GUILayout.Label("Save:" + _window.rootSavePath);
+                        }
+
+                    }
+                    GUILayout.EndHorizontal();
+
+                }
+                GUILayout.EndArea();
+            }
+        }
+        private bool set;
+        private string progressTxt = "";
+        private float progress = 0;
+
+        private bool repaint = false;
+        private Queue<DownloadProgressInfo> downs = new Queue<DownloadProgressInfo>();
+        private Queue<UploadProgressInfo> ups = new Queue<UploadProgressInfo>();
+        private object downsLock = new object();
+        private object upsLock = new object();
+
+        private void DownLoadProgress()
+        {
+            lock (downsLock)
+            {
+                if (downs.Count <= 0) return;
+                DownloadProgressInfo value = null;
+                while (downs.Count > 0)
+                {
+                    value = downs.Dequeue();
+                }
+                switch (value.state)
+                {
+                    case DownloadProgressInfo.State.Start:
+                    case DownloadProgressInfo.State.Ready:
+                        progress = 0f;
+                        progressTxt = $"DownLoad {value.filename}";
+                        break;
+                    case DownloadProgressInfo.State.Downloading:
+                        progress = value.current / (float)value.total;
+
+                        progressTxt = $"DownLoad({progress.ToString("0.00 %")})\t{value.filename}";
+                        break;
+                    case DownloadProgressInfo.State.Finish:
+                        progressTxt = "";
+                        progress = 0;
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        private void UpLoadProgress()
+        {
+            lock (upsLock)
+            {
+                if (ups.Count <= 0) return;
+                UploadProgressInfo value = null;
+                while (ups.Count > 0)
+                {
+                    value = ups.Dequeue();
+                }
+                switch (value.state)
+                {
+                    case UploadProgressInfo.State.Start:
+                    case UploadProgressInfo.State.Ready:
+                        progress = 0f;
+                        progressTxt = $"UpLoad {value.filename}";
+                        break;
+                    case UploadProgressInfo.State.Uploading:
+                        progress = value.current / (float)value.total;
+                        progressTxt = $"UpLoad({progress.ToString("0.00 %")})\t{value.filename}";
+                        break;
+                    case UploadProgressInfo.State.Finish:
+                        progressTxt = "";
+                        progress = 0;
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        public void Report(DownloadProgressInfo value)
+        {
+            lock (downsLock) {
+                switch (value.state)
+                {
+                    case DownloadProgressInfo.State.Start:
+                        repaint = true;
+                        break;
+                    case DownloadProgressInfo.State.Ready:
+                        break;
+                    case DownloadProgressInfo.State.Downloading:
+                        break;
+                    case DownloadProgressInfo.State.Finish:
+                        repaint = false;
+                        break;
+                    default:
+                        break;
+                }
+                downs.Enqueue(value); }
+        }
+        public void Report(UploadProgressInfo value)
+        {
+            lock (upsLock) {
+                switch (value.state)
+                {
+                    case UploadProgressInfo.State.Start:
+                        repaint = true;
+
+                        break;
+                    case UploadProgressInfo.State.Ready:
+                        break;
+                    case UploadProgressInfo.State.Uploading:
+                        break;
+                    case UploadProgressInfo.State.Finish:
+                        repaint = false;
+                        break;
+                    default:
+                        break;
+                }
+                ups.Enqueue(value); }
         }
     }
 }
