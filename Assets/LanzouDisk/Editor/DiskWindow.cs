@@ -670,7 +670,7 @@ namespace LanZouWindow
                     if (string.IsNullOrEmpty(saveDir)) return;
                 }
                 var info = await lzy.get_share_info(fid, is_file);
-                var code = await lzy.down_file_by_url(info.url, saveDir, info.pwd, true, _window.content.ShowProgress);
+                var code = await lzy.down_file_by_url(info.url, saveDir, info.pwd, true, null);
                 if (code.code != LanZouCode.SUCCESS)
                 {
                     Debug.LogError("Down load Err " + code);
@@ -683,7 +683,7 @@ namespace LanZouWindow
                 string saveDir = EditorUtility.OpenFilePanel("Save", string.IsNullOrEmpty(_window.rootSavePath) ? "Assets" : _window.rootSavePath, "");
                 if (!string.IsNullOrEmpty(saveDir) && File.Exists(saveDir))
                 {
-                    var code = await lzy.upload_file(saveDir, _window.data.current.id, true, _window.content.ShowProgress);
+                    var code = await lzy.upload_file(saveDir, _window.data.current.id, true, null);
                     if (code.code == LanZouCode.SUCCESS)
                     {
                         await FreshFolder(_window.data.current.id);

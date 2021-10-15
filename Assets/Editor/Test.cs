@@ -1,5 +1,9 @@
 using LanZouAPI;
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 
@@ -17,6 +21,7 @@ public class Test : EditorWindow
 
     private bool isLogin = false;
     private bool isFetchFiles = false;
+    private bool isUpload = false;
     private Vector2 scroll = new Vector2();
     private CloudFileList fileList;
     private Dictionary<long, DownloadProgressInfo> downs = new Dictionary<long, DownloadProgressInfo>();
@@ -47,6 +52,25 @@ public class Test : EditorWindow
             FetchFiles();
         }
         EditorGUI.EndDisabledGroup();
+
+        var files = Directory.GetFiles("download");
+        if (files.Length > 0)
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(Path.GetFileName(files[0]), GUILayout.Width(160));
+            EditorGUILayout.LabelField("File Size", GUILayout.Width(80));
+            {
+                EditorGUILayout.LabelField($"[{upinfo.current}/{upinfo.total}]", GUILayout.Width(160));
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUI.BeginDisabledGroup(isUpload);
+            if (GUILayout.Button(isUpload ? "Uploading..." : "Upload"))
+            {
+                UploadFile(files[0]);
+            }
+            EditorGUI.EndDisabledGroup();
+        }
 
         DrawFiles();
     }
@@ -106,16 +130,33 @@ public class Test : EditorWindow
     {
         downs[file_id] = new DownloadProgressInfo();
 
-        await cloud.down_file_by_id(file_id, "download", false, (progress) =>
+        var progress = new Progress<DownloadProgressInfo>((info) =>
         {
-            // Debug.Log($"download [{progress.current}/{progress.total}]");
-            downs[file_id] = progress;
+            downs[file_id] = info;
             Repaint();
         });
+
+        await cloud.down_file_by_id(file_id, "download", false, progress);
 
         if (downs.ContainsKey(file_id))
         {
             downs.Remove(file_id);
         }
+    }
+
+    UploadProgressInfo upinfo = new UploadProgressInfo();
+    private async void UploadFile(string file_path)
+    {
+        isUpload = true;
+
+        var progress = new Progress<UploadProgressInfo>((info) =>
+        {
+            upinfo = info;
+            Repaint();
+        });
+
+        await cloud.upload_file(file_path, -1, true, progress);
+
+        isUpload = false;
     }
 }

@@ -4,7 +4,6 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace LanZouAPI
@@ -24,39 +23,44 @@ namespace LanZouAPI
 
         private async Task<string> _post_text(string url, Dictionary<string, string> data)
         {
-            return await _post_text(url, new FormUrlEncodedContent(data));
-        }
-
-        private async Task<string> _post_text(string url, HttpContent content)
-        {
             url = fix_url_domain(url);
             string text = null;
             using (var client = _get_client())
             {
-                var resp = await client.PostAsync(url, content);
-                text = await resp.Content.ReadAsStringAsync();
+                using (var content = new FormUrlEncodedContent(data))
+                {
+                    using (var resp = await client.PostAsync(url, content))
+                    {
+                        text = await resp.Content.ReadAsStringAsync();
+                    }
+                }
             }
             return text;
         }
 
-        private async Task<HttpResponseMessage> _get_resp(string url, Dictionary<string, string> headers = null,
-            float timeout = 0, bool allowRedirect = true, string proxy = null, bool req_header = false)
+        private async Task<HttpContentHeaders> _get_headers(string url)
         {
             url = fix_url_domain(url);
-            var req_op = req_header ? HttpCompletionOption.ResponseHeadersRead : HttpCompletionOption.ResponseContentRead;
-            using (var client = _get_client(headers, timeout, allowRedirect, proxy))
+            HttpContentHeaders content_headers;
+            using (var client = _get_client(null, 0, false))
             {
-                return await client.GetAsync(url, req_op);
+                using (var resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
+                {
+                    content_headers = resp.Content.Headers;
+                }
             }
+            return content_headers;
         }
 
-        private async Task<Stream> _get_stream(string url, Dictionary<string, string> headers = null,
-            float timeout = 0, bool allowRedirect = true, string proxy = null)
+        internal struct progress
         {
-            url = fix_url_domain(url);
-            var client = _get_client(headers, timeout, allowRedirect, proxy);
+            public long current;
+            public long total;
+
+            public progress(long current, long total)
             {
-                return await client.GetStreamAsync(url);
+                this.current = current;
+                this.total = total;
             }
         }
 
@@ -64,9 +68,9 @@ namespace LanZouAPI
         {
             private HttpContent content;
             private int bufferSize;
-            private Action<long, long> progress;
+            private IProgress<progress> progress;
 
-            public ProgressableStreamContent(HttpContent content, int bufferSize, Action<long, long> progress)
+            public ProgressableStreamContent(HttpContent content, int bufferSize, IProgress<progress> progress)
             {
                 this.content = content;
                 this.bufferSize = bufferSize;
@@ -78,25 +82,22 @@ namespace LanZouAPI
                 }
             }
 
-            protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
+            protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
             {
-                return Task.Run(async () =>
+                var buffer = new byte[bufferSize];
+                TryComputeLength(out var size);
+                var uploaded = 0;
+                using (var sinput = await content.ReadAsStreamAsync())
                 {
-                    var buffer = new byte[bufferSize];
-                    TryComputeLength(out var size);
-                    var uploaded = 0;
-                    using (var sinput = await content.ReadAsStreamAsync())
+                    while (true)
                     {
-                        while (true)
-                        {
-                            var length = sinput.Read(buffer, 0, bufferSize);
-                            if (length == 0) break;
-                            stream.Write(buffer, 0, length);
-                            uploaded += length;
-                            progress?.Invoke(uploaded, size);
-                        }
+                        var length = sinput.Read(buffer, 0, bufferSize);
+                        if (length == 0) break;
+                        stream.Write(buffer, 0, length);
+                        uploaded += length;
+                        progress?.Report(new progress(uploaded, size));
                     }
-                });
+                }
             }
 
             protected override bool TryComputeLength(out long length)
