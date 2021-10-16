@@ -3,357 +3,484 @@ using System.Collections.Generic;
 
 namespace LanZouAPI
 {
-    public class CloudFile
+    /// <summary>
+    /// 重写ToString，以JSON格式输出
+    /// </summary>
+    public class JsonStringObject
     {
-        public long id;
-        public string name;
-        public string time;
-        public string size;
-        public string type;
-        public int downs;
-        public bool has_pwd;
-        public bool has_des;
-
         public override string ToString()
         {
             return JsonMapper.ToJson(this);
         }
     }
 
-    public class CloudFileList
+    /// <summary>
+    /// 蓝奏云返回结果信息
+    /// </summary>
+    public class Result : JsonStringObject
     {
-        public LanZouCode code;
-        public List<CloudFile> files;
+        /// <summary>
+        /// 蓝奏云结果码
+        /// </summary>
+        public LanZouCode code { get; internal set; }
 
-        public override string ToString()
-        {
-            return JsonMapper.ToJson(this);
-        }
+        /// <summary>
+        /// 结果码返回为错误时的消息
+        /// </summary>
+        public string errorMessage { get; internal set; }
     }
 
-    public class CloudFolder
+    internal class MoveFolderList : Result
     {
-        public long id;
-        public string name;
-        public bool has_pwd;
-        public string desc;
-
-        public override string ToString()
-        {
-            return JsonMapper.ToJson(this);
-        }
+        internal Dictionary<long, string> folders { get; set; }
     }
 
-    public class CloudFolderList
+    public class CloudFile : JsonStringObject
     {
-        public LanZouCode code;
-        public List<CloudFolder> folders;
+        /// <summary>
+        /// 文件唯一ID
+        /// </summary>
+        public long id { get; internal set; }
 
-        public override string ToString()
-        {
-            return JsonMapper.ToJson(this);
-        }
+        /// <summary>
+        /// 文件名
+        /// </summary>
+        public string name { get; internal set; }
+
+        /// <summary>
+        /// 上传时间
+        /// </summary>
+        public string time { get; internal set; }
+
+        /// <summary>
+        /// 文件大小
+        /// </summary>
+        public string size { get; internal set; }
+
+        /// <summary>
+        /// 文件类型
+        /// </summary>
+        public string type { get; internal set; }
+
+        /// <summary>
+        /// 下载次数
+        /// </summary>
+        public int downloads { get; internal set; }
+
+        /// <summary>
+        /// 是否存在提取码
+        /// </summary>
+        public bool hasPassword { get; internal set; }
+
+        /// <summary>
+        /// 是否有描述信息
+        /// </summary>
+        public bool hasDescription { get; internal set; }
     }
 
-    public class CloudFolderDetail
+    public class CloudFolder : JsonStringObject
     {
-        public LanZouCode code;
-        public string name;
-        public string pwd;
-        public string desc;
-        public string url;
-        public string size;
-        public string time;
-        public string type;
-        public string durl;
+        /// <summary>
+        /// 文件夹唯一ID
+        /// </summary>
+        public long id { get; internal set; }
 
-        public CloudFolderDetail(LanZouCode code)
+        /// <summary>
+        /// 文件夹名
+        /// </summary>
+        public string name { get; internal set; }
+
+        /// <summary>
+        /// 是否存在提取码
+        /// </summary>
+        public bool hasPassword { get; internal set; }
+
+        /// <summary>
+        /// 文件夹描述信息
+        /// </summary>
+        public string description { get; internal set; }
+    }
+
+    public class CloudFileList : Result
+    {
+        /// <summary>
+        /// 文件列表
+        /// </summary>
+        public List<CloudFile> files { get; internal set; }
+    }
+
+    public class CloudFolderList : Result
+    {
+        /// <summary>
+        /// 文件夹列表
+        /// </summary>
+        public List<CloudFolder> folders { get; internal set; }
+    }
+
+    /// <summary>
+    /// 文件分享页信息
+    /// </summary>
+    public class CloudFileInfo : Result
+    {
+        /// <summary>
+        /// 文件名称
+        /// </summary>
+        public string name { get; internal set; }
+
+        /// <summary>
+        /// 提取码
+        /// </summary>
+        public string password { get; internal set; }
+
+        /// <summary>
+        /// 描述
+        /// </summary>
+        public string description { get; internal set; }
+
+        /// <summary>
+        /// 分享链接
+        /// </summary>
+        public string url { get; internal set; }
+
+        /// <summary>
+        /// 文件大小
+        /// </summary>
+        public string size { get; internal set; }
+
+        /// <summary>
+        /// 上传时间
+        /// </summary>
+        public string time { get; internal set; }
+
+        /// <summary>
+        /// 文件类型
+        /// </summary>
+        public string type { get; internal set; }
+
+        /// <summary>
+        /// 直连地址（下载地址）
+        /// </summary>
+        public string durl { get; internal set; }
+
+        public CloudFileInfo(LanZouCode code, string password = null, string url = null,
+             string name = null, string type = null, string time = null, string size = null,
+             string description = null, string durl = null)
         {
             this.code = code;
-        }
-
-        public CloudFolderDetail(LanZouCode code, string pwd, string url)
-        {
-            this.code = code;
-            this.pwd = pwd;
+            this.password = password;
             this.url = url;
-        }
-
-        public CloudFolderDetail(LanZouCode code, string name, string time, string size, string desc, string pwd, string url)
-        {
-            this.code = code;
             this.name = name;
-            this.time = time;
-            this.size = size;
-            this.desc = desc;
-            this.pwd = pwd;
-            this.url = url;
-        }
-
-        public CloudFolderDetail(LanZouCode code, string name, string time, string size, string desc, string pwd, string url, string type, string durl)
-        {
-            this.code = code;
-            this.name = name;
-            this.time = time;
-            this.size = size;
-            this.desc = desc;
-            this.pwd = pwd;
-            this.url = url;
             this.type = type;
+            this.time = time;
+            this.size = size;
+            this.description = description;
             this.durl = durl;
         }
-
-        public override string ToString()
-        {
-            return JsonMapper.ToJson(this);
-        }
     }
 
 
-    public class CloudFileDetail
+    /// <summary>
+    /// 专为 CloudFolderInfo 使用，指其下子文件夹
+    /// </summary>
+    public class SubFolder : JsonStringObject
     {
-        public LanZouCode code;
-        public string name;
-        public string pwd;
-        public string desc;
-        public string url;
-        public string size;
-        public string time;
-        public string type;
-        public string durl;
+        /// <summary>
+        /// 文件夹名
+        /// </summary>
+        public string name { get; internal set; }
 
-        public CloudFileDetail(LanZouCode code)
+        /// <summary>
+        /// 描述
+        /// </summary>
+        public string description { get; internal set; }
+
+        /// <summary>
+        /// 分享链接
+        /// </summary>
+        public string url { get; internal set; }
+    }
+
+    /// <summary>
+    /// 专为 CloudFolderInfo 使用，指其下子文件
+    /// </summary>
+    public class SubFile : JsonStringObject
+    {
+        /// <summary>
+        /// 文件名
+        /// </summary>
+        public string name { get; internal set; }
+
+        /// <summary>
+        /// 上传时间
+        /// </summary>
+        public string time { get; internal set; }
+
+        /// <summary>
+        /// 文件大小
+        /// </summary>
+        public string size { get; internal set; }
+
+        /// <summary>
+        /// 文件类型
+        /// </summary>
+        public string type { get; internal set; }
+
+        /// <summary>
+        /// 分享链接
+        /// </summary>
+        public string url { get; internal set; }
+    }
+
+    /// <summary>
+    /// 文件夹分享页信息，包括子文件（夹）信息
+    /// </summary>
+    public class CloudFolderInfo : Result
+    {
+        /// <summary>
+        /// 文件夹唯一ID
+        /// </summary>
+        public long id { get; internal set; }
+
+        /// <summary>
+        /// 文件夹名
+        /// </summary>
+        public string name { get; internal set; }
+
+        /// <summary>
+        /// 创建时间
+        /// </summary>
+        public string time { get; internal set; }
+
+        /// <summary>
+        /// 提取码
+        /// </summary>
+        public string password { get; internal set; }
+
+        /// <summary>
+        /// 描述
+        /// </summary>
+        public string description { get; internal set; }
+
+        /// <summary>
+        /// 分享链接
+        /// </summary>
+        public string url { get; internal set; }
+
+        /// <summary>
+        /// 子文件夹列表
+        /// </summary>
+        public List<SubFolder> folders { get; internal set; }
+
+        /// <summary>
+        /// 子文件列表
+        /// </summary>
+        public List<SubFile> files { get; internal set; }
+
+        public CloudFolderInfo(LanZouCode code)
         {
             this.code = code;
         }
 
-        public CloudFileDetail(LanZouCode code, string pwd, string url)
+        public CloudFolderInfo(LanZouCode code, long id, string name, string time, string password,
+            string description, string url, List<SubFolder> folders, List<SubFile> files)
         {
             this.code = code;
-            this.pwd = pwd;
-            this.url = url;
-        }
-
-        public CloudFileDetail(LanZouCode code, string name, string time, string size, string desc, string pwd, string url)
-        {
-            this.code = code;
+            this.id = id;
             this.name = name;
             this.time = time;
-            this.size = size;
-            this.desc = desc;
-            this.pwd = pwd;
+            this.description = description;
+            this.password = password;
             this.url = url;
-        }
-
-        public CloudFileDetail(LanZouCode code, string name, string time, string size, string desc, string pwd, string url, string type, string durl)
-        {
-            this.code = code;
-            this.name = name;
-            this.time = time;
-            this.size = size;
-            this.desc = desc;
-            this.pwd = pwd;
-            this.url = url;
-            this.type = type;
-            this.durl = durl;
-        }
-
-        public override string ToString()
-        {
-            return JsonMapper.ToJson(this);
+            this.folders = folders;
+            this.files = files;
         }
     }
 
-    public class ShareInfo
+    /// <summary>
+    /// 分享文件（夹）信息
+    /// </summary>
+    public class ShareInfo : Result
     {
-        public LanZouCode code;
-        public string name;
-        public string desc;
-        public string url;
-        public string pwd;
+        /// <summary>
+        /// 文件（夹）名
+        /// </summary>
+        public string name { get; internal set; }
+
+        /// <summary>
+        /// 描述
+        /// </summary>
+        public string description { get; internal set; }
+
+        /// <summary>
+        /// 分享链接
+        /// </summary>
+        public string url { get; internal set; }
+
+        /// <summary>
+        /// 提取码
+        /// </summary>
+        public string password { get; internal set; }
 
         public ShareInfo(LanZouCode code)
         {
             this.code = code;
         }
 
-        public ShareInfo(LanZouCode code, string name, string url, string desc, string pwd)
+        public ShareInfo(LanZouCode code, string name, string url, string description, string password)
         {
             this.code = code;
-            this.desc = desc;
+            this.description = description;
             this.name = name;
-            this.pwd = pwd;
+            this.password = password;
             this.url = url;
         }
-
-        public override string ToString()
-        {
-            return JsonMapper.ToJson(this);
-        }
     }
 
-    public class DirectUrlInfo
+    /// <summary>
+    /// 创建文件夹返回结果
+    /// </summary>
+    public class CreateFolderInfo : Result
     {
-        public LanZouCode code;
-        public string name;
-        public string durl;
+        /// <summary>
+        /// 文件夹唯一ID
+        /// </summary>
+        public long id { get; internal set; }
 
-        public DirectUrlInfo(LanZouCode code)
+        /// <summary>
+        /// 文件夹名
+        /// </summary>
+        public string name { get; internal set; }
+
+        /// <summary>
+        /// 描述
+        /// </summary>
+        public string description { get; internal set; }
+
+        public CreateFolderInfo(LanZouCode code)
         {
             this.code = code;
         }
 
-        public DirectUrlInfo(LanZouCode code, string name, string durl)
-        {
-            this.code = code;
-            this.name = name;
-            this.durl = durl;
-        }
-
-        public override string ToString()
-        {
-            return JsonMapper.ToJson(this);
-        }
-    }
-
-    public class MakeDirInfo
-    {
-        public LanZouCode code;
-        public long id;
-        public string name;
-        public string desc;
-
-        public MakeDirInfo(LanZouCode code)
-        {
-            this.code = code;
-        }
-
-        public MakeDirInfo(LanZouCode code, long id, string name, string desc)
+        public CreateFolderInfo(LanZouCode code, long id, string name, string description)
         {
             this.code = code;
             this.id = id;
             this.name = name;
-            this.desc = desc;
-        }
-
-        public override string ToString()
-        {
-            return JsonMapper.ToJson(this);
+            this.description = description;
         }
     }
 
-    public class DownloadInfo
+    public class DownloadInfo : Result
     {
-        public LanZouCode code;
-        public string filename;
-        public string file_path;
-        public string share_url;
-        public bool is_continue;
+        /// <summary>
+        /// 文件名
+        /// </summary>
+        public string fileName { get; internal set; }
 
-        public DownloadInfo(LanZouCode code)
+        /// <summary>
+        /// 下载路径
+        /// </summary>
+        public string filePath { get; internal set; }
+
+        /// <summary>
+        /// 分享链接
+        /// </summary>
+        public string url { get; internal set; }
+
+        /// <summary>
+        /// 直连地址（下载地址）
+        /// </summary>
+        public string durl { get; internal set; }
+
+        /// <summary>
+        /// 是否断点续传
+        /// </summary>
+        public bool isContinue { get; internal set; }
+
+        public DownloadInfo(LanZouCode code, string share_url = null,
+            string filename = null, string file_path = null, bool is_continue = false)
         {
             this.code = code;
-        }
-
-        public DownloadInfo(LanZouCode code, string share_url)
-        {
-            this.code = code;
-            this.share_url = share_url;
-        }
-
-        public DownloadInfo(LanZouCode code, string share_url, string filename)
-        {
-            this.code = code;
-            this.share_url = share_url;
-            this.filename = filename;
-        }
-
-        public DownloadInfo(LanZouCode code, string share_url, string filename, string file_path, bool is_continue)
-        {
-            this.code = code;
-            this.share_url = share_url;
-            this.filename = filename;
-            this.file_path = file_path;
-            this.is_continue = is_continue;
-        }
-
-        public override string ToString()
-        {
-            return JsonMapper.ToJson(this);
+            this.url = share_url;
+            this.fileName = filename;
+            this.filePath = file_path;
+            this.isContinue = is_continue;
         }
     }
 
-    public class DownloadProgressInfo
+    public class UploadInfo : Result
     {
-        public enum State
-        {
-            Start,
-            Ready,
-            Downloading,
-            Finish,
-        }
+        /// <summary>
+        /// 文件名
+        /// </summary>
+        public string fileName { get; internal set; }
 
-        public State state;
-        public long current;
-        public long total;
-        public string filename;
-        public string share_url;
-        public bool is_continue;
+        /// <summary>
+        /// 本地文件路径
+        /// </summary>
+        public string filePath { get; internal set; }
 
-        public override string ToString()
-        {
-            return JsonMapper.ToJson(this);
-        }
-    }
+        /// <summary>
+        /// 文件唯一ID
+        /// </summary>
+        public long id { get; internal set; }
 
-    public class UploadInfo
-    {
-        public LanZouCode code;
-        public string filename;
-        public string file_path;
-        public long file_id;
-        public string share_url;
+        /// <summary>
+        /// 分享链接
+        /// </summary>
+        public string url { get; internal set; }
 
-        public UploadInfo(LanZouCode code, string filename, string file_path)
+        public UploadInfo(LanZouCode code, string filename = null,
+            string file_path = null, long file_id = 0, string share_url = null)
         {
             this.code = code;
-            this.filename = filename;
-            this.file_path = file_path;
-        }
-
-        public UploadInfo(LanZouCode code, string filename, string file_path, long file_id, string share_url)
-        {
-            this.code = code;
-            this.filename = filename;
-            this.file_path = file_path;
-            this.file_id = file_id;
-            this.share_url = share_url;
-        }
-
-        public override string ToString()
-        {
-            return JsonMapper.ToJson(this);
+            this.fileName = filename;
+            this.filePath = file_path;
+            this.id = file_id;
+            this.url = share_url;
         }
     }
 
-    public class UploadProgressInfo
+    public enum ProgressState
     {
-        public enum State
-        {
-            Start,
-            Ready,
-            Uploading,
-            Finish,
-        }
+        Start,
+        Ready,
+        Progressing,
+        Finish,
+    }
 
-        public State state;
-        public long current;
-        public long total;
-        public string filename;
+    /// <summary>
+    /// 上传/下载 进度信息
+    /// </summary>
+    public class ProgressInfo : JsonStringObject
+    {
+        /// <summary>
+        /// 状态
+        /// </summary>
+        public ProgressState state { get; internal set; }
 
-        public override string ToString()
+        /// <summary>
+        /// 文件名
+        /// </summary>
+        public string fileName { get; internal set; }
+
+        /// <summary>
+        /// 当前大小（字节）
+        /// </summary>
+        public long current { get; internal set; }
+
+        /// <summary>
+        /// 总大小（字节）
+        /// </summary>
+        public long total { get; internal set; }
+
+        internal ProgressInfo(ProgressState state, string filename = null, long current = 0, long total = 0)
         {
-            return JsonMapper.ToJson(this);
+            this.state = state;
+            this.fileName = filename;
+            this.current = current;
+            this.total = total;
         }
     }
+
 }

@@ -1002,6 +1002,7 @@ namespace LanZouWindow
                 }
             }
         }
+
         public void Report(DownloadProgressInfo value)
         {
             lock (downsLock) {
@@ -1022,6 +1023,7 @@ namespace LanZouWindow
                 }
                 downs.Enqueue(value); }
         }
+
         public void Report(UploadProgressInfo value)
         {
             lock (upsLock) {
