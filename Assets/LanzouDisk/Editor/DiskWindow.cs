@@ -507,23 +507,17 @@ namespace LanZouWindow
                 }
 
             }
-            public async void DownLoadFile(long fid, string name)
+            public async Task DownLoadFile(long fid, string name)
             {
+                if (string.IsNullOrEmpty(_window.set.rootSavePath))
+                {
+                    ChooseSavePath();
+                    return;
+                }
                 string pname = name.Contains(".") ? name.Split('.')[0] : "";
                 string ex = name.Contains(".") ? name.Split('.')[1] : "";
-                string saveDir = "";
-                if (_window.set.choose)
-                {
-                    saveDir = _window.set.rootSavePath;
-                }
-                else
-                {
-                    saveDir = EditorUtility.SaveFilePanel("Save", string.IsNullOrEmpty(_window.set.rootSavePath) ?
-                        "Assets" : _window.set.rootSavePath, pname, ex);
-                    if (string.IsNullOrEmpty(saveDir)) return;
-                }
                 var info = await lzy.GetFileShareInfo(fid);
-                var code = await lzy.DownloadFileByUrl(info.url, saveDir, info.password, true, _window.downLoad);
+                var code = await lzy.DownloadFileByUrl(info.url, _window.set.rootSavePath, info.password, true, _window.downLoad);
                 if (code.code != LanZouCode.SUCCESS)
                 {
                     Debug.LogError("Down load Err " + code);
@@ -912,7 +906,6 @@ namespace LanZouWindow
         {
             public bool open = false;
             public string rootSavePath = "Asset";
-            public bool choose = true;
         }
 
         private Setting set=new  Setting();
@@ -1015,7 +1008,6 @@ namespace LanZouWindow
                         }
                         if (set.open)
                         {
-                            set.choose = GUILayout.Toggle(set.choose, Contents.choose, EditorStyles.toolbarButton);
                             if (GUILayout.Button(Contents.choosefolder, EditorStyles.toolbarButton, GUILayout.Width(30)))
                             {
                                 tool.ChooseSavePath();
