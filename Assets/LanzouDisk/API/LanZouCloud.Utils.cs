@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace LanZouAPI
+namespace LanZouCloudAPI
 {
     public partial class LanZouCloud
     {
@@ -110,7 +110,7 @@ namespace LanZouAPI
             //    return (datetime.today() - timedelta(days = int(days))).strftime('%Y-%m-%d')
             //else:
             //    return time_str
-            return "todo time format";
+            return time_str;
         }
 
         /// <summary>
@@ -135,9 +135,20 @@ namespace LanZouAPI
                 return LanZouCode.NETWORK_ERROR;
             if (text.Contains("info\":\"login not"))
                 return LanZouCode.NOT_LOGIN;
-            if (!text.Contains("zt\":1"))
+            if (!text.Contains("zt\":1") && !text.Contains("zt\":2"))
                 return LanZouCode.FAILED;
             return LanZouCode.SUCCESS;
+        }
+
+        private string _rescode_msg(LanZouCode code)
+        {
+            if (code == LanZouCode.NETWORK_ERROR)
+                return "Network error, please retry later.";
+            else if (code == LanZouCode.NOT_LOGIN)
+                return "You are not login, please login and retry.";
+            else if (code == LanZouCode.FAILED)
+                return "Unknown reason, but just Failed.";
+            return code.ToString();
         }
 
         /// <summary>
