@@ -11,9 +11,61 @@ using static LanZouWindow.DiskWindow.DiskData;
 
 namespace LanZouWindow
 {
+    public static class DragAndDropTool
+    {
+        public class Info
+        {
+            public bool dragging;
+            public bool enterArera;
+            public bool compelete;
+            public UnityEngine.Object[] objectReferences { get { return DragAndDrop.objectReferences; } }
+            public string[] paths { get { return DragAndDrop.paths; } }
+            public DragAndDropVisualMode visualMode { get { return DragAndDrop.visualMode; } }
+            public int activeControlID { get { return DragAndDrop.activeControlID; } }
+        }
+
+        private static bool _dragging;
+        private static bool _enterArera;
+        private static bool _compelete;
+        private static Info _info = new Info();
+        public static Info Drag(Event eve, Rect Content, DragAndDropVisualMode mode = DragAndDropVisualMode.Generic)
+        {
+            switch (eve.type)
+            {
+                case EventType.DragUpdated:
+                    _dragging = true; _compelete = false;
+                    _enterArera = Content.Contains(eve.mousePosition);
+                    if (_enterArera)
+                    {
+                        DragAndDrop.visualMode = mode;
+                        Event.current.Use();
+                    }
+                    break;
+                case EventType.DragPerform:
+                    DragAndDrop.AcceptDrag();
+                    _enterArera = Content.Contains(eve.mousePosition);
+                    _compelete = true; _dragging = false;
+                    Event.current.Use();
+
+                    break;
+                case EventType.DragExited:
+                    _dragging = false; _compelete = true;
+                    _enterArera = Content.Contains(eve.mousePosition);
+                    break;
+                default:
+                    _dragging = false; _compelete = false;
+                    _enterArera = Content.Contains(eve.mousePosition);
+                    break;
+            }
+            _info.compelete = _compelete;
+            _info.enterArera = _enterArera;
+            _info.dragging = _dragging;
+            return _info;
+        }
+    }
     partial class DiskWindow
     {
-        class Contents
+        static class Contents
         {
             private static GUIContent folder = EditorGUIUtility.IconContent("Folder Icon");
             public static GUIContent name = new GUIContent("Name","文件名字");
@@ -21,7 +73,7 @@ namespace LanZouWindow
             public static GUIContent password = new GUIContent("*","有密码？");
             public static GUIContent desc = new GUIContent("...","文件描述");
             public static GUIContent down = new GUIContent("Downs","下载次数");
-            public static GUIContent newfolder =new GUIContent(EditorGUIUtility.IconContent("d_CreateAddNew@2x")) { tooltip="新建文件夹"};
+            public static GUIContent newfolder =new GUIContent(EditorGUIUtility.IconContent("Folder Icon")) { tooltip="新建文件夹"};
             public static GUIContent uploadfile =new GUIContent(EditorGUIUtility.IconContent("d_CreateAddNew@2x")) { tooltip="上传文件"};
             public static GUIContent goback = new GUIContent(EditorGUIUtility.IconContent("ArrowNavigationLeft")) { tooltip = "返回" };
             public static GUIContent gofront = new GUIContent(EditorGUIUtility.IconContent("ArrowNavigationRight")) { tooltip = "前进" };
@@ -30,11 +82,15 @@ namespace LanZouWindow
             public static GUIContent set = new GUIContent(EditorGUIUtility.IconContent("d_TerrainInspector.TerrainToolSettings")) { tooltip = "设置" };
             public static GUIContent choosefolder = new GUIContent(EditorGUIUtility.IconContent("Folder Icon")) { tooltip = "选择保存路径" };
             public static GUIContent choose = new GUIContent("Auto", "选择子文件夹");
-            public static GUIContent path= new GUIContent("Path:","当前路径");
+            public static GUIContent path = new GUIContent("Path:","当前路径");
             public static GUIContent titleContent = new GUIContent("LanzouDisk");
             public static GUIContent files = new GUIContent("Files");
             public static GUIContent folders = new GUIContent("Folders");
+            public static GUIContent upcloud = new GUIContent(EditorGUIUtility.IconContent("d_CloudConnect").image,"上传") { text="↑"};
+            public static GUIContent downcloud = new GUIContent(EditorGUIUtility.IconContent("d_CloudConnect").image) { text = "↓" };
+            public static GUIContent dragFiles = new GUIContent(EditorGUIUtility.IconContent("console.infoicon").image,"拖拽文件到此处") { text = "Drag Files Here" };
 
+            
             public static GUIContent GetFolder(string name)
             {
                 return new GUIContent(name, folder.image);
@@ -103,18 +159,38 @@ namespace LanZouWindow
 
                 private void DownLoad(object userData)
                 {
-                    DiskData.FileData data = (DiskData.FileData)userData;
-                    tool.DownLoadFile(data.id, data.name);
+
+                    IList<int> list = (IList<int>)userData;
+                    if (list == null || list.Count <= 0) return;
+                    DownLoadProgressBar.DownLoadData[] datas = new DownLoadProgressBar.DownLoadData[list.Count];
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        var id = list[i];
+                        var data = files.Find(_data => { return _data.id == id; });
+                        datas[i] = new DownLoadProgressBar.DownLoadData()
+                        {
+                            fid = data.id,
+                            name = data.name,
+                        };
+                    }
+                    _window.downLoad.DownLoad(datas);
                 }
                 private void Description(object userData)
                 {
                     int id = (int)userData;
                     tool.ShowDescription(id, false);
                 }
-                private void Delete(object userData)
+                private async void Delete(object userData)
                 {
-                    int id = (int)userData;
-                    tool.Delete((int)userData, true);
+
+                    IList<int> list = (IList<int>)userData;
+                    if (list == null || list.Count <= 0) return;
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        int id = (int)list[i];
+                        await tool.Delete(id, true);
+                    }
+           
                 }
                 private void Share(object userData)
                 {
@@ -155,10 +231,11 @@ namespace LanZouWindow
                     GenericMenu menu = new GenericMenu();
                     menu.AddItem(new GUIContent("Rename"), false, OpenRename, id);
                     menu.AddItem(new GUIContent("Share"), false, Share, id);
-                    menu.AddItem(new GUIContent("Delete"), false, Delete, id);
-                    var data = files.Find(_data => { return _data.id == id; });
-                    menu.AddItem(new GUIContent("DownLoad"), false, DownLoad, data);
+                    menu.AddItem(new GUIContent("Delete"), false, Delete, this.GetSelection());
+                   
+                    menu.AddItem(new GUIContent("DownLoad"), false, DownLoad, this.GetSelection());
 
+                    var data = files.Find(_data => { return _data.id == id; });
                     if (data.has_des)
                     {
                         menu.AddItem(new GUIContent("Description"), false, Description, id);
@@ -257,10 +334,15 @@ namespace LanZouWindow
                     Reload();
                 }
 
-                private void Delete(object userData)
+                private async void Delete(object userData)
                 {
-                    int id = (int)userData;
-                    tool.Delete((int)userData, false);
+                    IList<int> list = (IList<int>)userData;
+                    if (list == null || list.Count <= 0) return;
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        int id = (int)list[i];
+                        await tool.Delete(id, false);
+                    }
                 }
                 private void Description(object userData)
                 {
@@ -284,7 +366,7 @@ namespace LanZouWindow
                     GenericMenu menu = new GenericMenu();
                     menu.AddItem(new GUIContent("Rename"), false, OpenRename, id);
                     menu.AddItem(new GUIContent("Share"), false, Share, id);
-                    menu.AddItem(new GUIContent("Delete"), false, Delete, id);
+                    menu.AddItem(new GUIContent("Delete"), false, Delete, this.GetSelection());
                     var data = folders.Find(_data => { return _data.id == id; });
                     if (!string.IsNullOrEmpty(data.desc))
                     {
@@ -397,11 +479,11 @@ namespace LanZouWindow
                     GUILayout.BeginHorizontal();
                     {
                         GUILayout.Label(Contents.files);
-                        GUILayout.FlexibleSpace();
-                        if (GUILayout.Button(Contents.uploadfile, EditorStyles.toolbarButton))
-                        {
-                            tool.UpLoadFile();
-                        }
+                        //GUILayout.FlexibleSpace();
+                        //if (GUILayout.Button(Contents.uploadfile, EditorStyles.toolbarButton))
+                        //{
+                        //    tool.UpLoadFile();
+                        //}
                     }
                     GUILayout.EndHorizontal();
 
@@ -418,7 +500,7 @@ namespace LanZouWindow
                     {
                         GUILayout.Label(Contents.folders);
                         GUILayout.FlexibleSpace();
-                        if (GUILayout.Button(Contents.newfolder, EditorStyles.toolbarButton))
+                        if (GUILayout.Button(Contents.newfolder, EditorStyles.toolbarButton,GUILayout.Width(40)))
                         {
                             tool.NewFolder();
                         }
@@ -523,22 +605,17 @@ namespace LanZouWindow
                     Debug.LogError("Down load Err " + code);
                 }
             }
-            public async void UpLoadFile()
+            public async Task UpLoadFile(string file_path, long folder_id = -1, bool overwrite = false,IProgress<ProgressInfo> progress = null)
             {
-                string saveDir = EditorUtility.OpenFilePanel("Save", string.IsNullOrEmpty(_window.set.rootSavePath) ? 
-                    "Assets" : _window.set.rootSavePath, "");
-                if (!string.IsNullOrEmpty(saveDir) && File.Exists(saveDir))
+                var code=await lzy.UploadFile(file_path, folder_id, overwrite, progress);
+                if (code.code == LanZouCode.SUCCESS)
                 {
-                    var code = await lzy.UploadFile(saveDir, current.id, true, _window.upLoad);
-                    if (code.code == LanZouCode.SUCCESS)
-                    {
-                        await FreshFolder(current.id);
-                        FreshContent();
-                    }
-                    else
-                    {
-                        Debug.LogError(code);
-                    }
+                    await FreshFolder(current.id);
+                    FreshContent();
+                }
+                else
+                {
+                    Debug.LogError(code);
                 }
             }
 
@@ -589,7 +666,7 @@ namespace LanZouWindow
                 }
             }
 
-            public async void Delete(long fid, bool is_file)
+            public async Task Delete(long fid, bool is_file)
             {
                 if (is_file)
                 {
@@ -833,16 +910,39 @@ namespace LanZouWindow
         public class ProgressBarView : IProgress<ProgressInfo>
         {
             private Queue<ProgressInfo> downs = new Queue<ProgressInfo>();
-            private string txtFormat = "";
-            public static ProgressBarView current { get; private set; }
+            protected string txtFormat = "";
+            public static ProgressBarView current { get; protected set; }
             public ProgressBarView(string txtFormat)
             {
                 this.txtFormat = txtFormat;
             }
-
             private object downsLock = new object();
-            private string progressTxt = "";
-            private float progress = 0;
+            protected string progressTxt = "";
+            protected float progress = 0;
+
+            protected virtual void SetProgressTxt(ProgressInfo value)
+            {
+                switch (value.state)
+                {
+                    case ProgressState.Start:
+                    case ProgressState.Ready:
+                        progress = 0f;
+                        progressTxt = string.Format(txtFormat, progress.ToString("0.00 %"), value.fileName);
+
+                        break;
+                    case ProgressState.Progressing:
+                        progress = value.current / (float)value.total;
+                        progressTxt = string.Format(txtFormat, progress.ToString("0.00 %"), value.fileName);
+                        break;
+                    case ProgressState.Finish:
+             
+
+                        break;
+                    default:
+                        break;
+                }
+
+            }
             public void OnGUI(Rect rect)
             {
                 EditorGUI.ProgressBar(rect, progress, progressTxt);
@@ -854,58 +954,180 @@ namespace LanZouWindow
                     {
                         value = downs.Dequeue();
                     }
-                    switch (value.state)
-                    {
-                        case ProgressState.Start:
-                        case ProgressState.Ready:
-                            progress = 0f;
-                            progressTxt = string.Format(txtFormat, progress.ToString("0.00 %"), value.fileName);
-                            break;
-                        case ProgressState.Progressing:
-                            progress = value.current / (float)value.total;
-                            progressTxt = string.Format(txtFormat, progress.ToString("0.00 %"), value.fileName);
-                            break;
-                        case ProgressState.Finish:
-                            current = null;
-                            break;
-                        default:
-                            break;
-                    }
-
+                    SetProgressTxt(value);
                 }
 
             }
-
-            public void Report(ProgressInfo value)
+            public virtual void Update() { }
+            public virtual void Report(ProgressInfo value)
             {
-                current = this;
-
                 lock (downsLock)
                 {
-                    switch (value.state)
-                    {
-                        case ProgressState.Start:
-                            _window.repaint = true;
-                            break;
-                        case ProgressState.Ready:
-                            break;
-                        case ProgressState.Progressing:
-                            break;
-                        case ProgressState.Finish:
-                            _window.repaint = false;
-                            break;
-                        default:
-                            break;
-                    }
                     downs.Enqueue(value);
                 }
             }
         }
+        public class DownLoadProgressBar : ProgressBarView
+        {
+            private DiskTool tool { get { return _window.tool; } }
+
+            public DownLoadProgressBar() : base("DownLoad ( {2} ) - ({0}) \t{1}") { }
+            private Queue<DownLoadData> queue = new Queue<DownLoadData>();
+            private object _lock = new object();
+          
+            public class DownLoadData
+            {
+                public long fid;
+                public string name;
+            }
+            private bool downloading = false;
+            public int count=0;
+            public void DownLoad(DownLoadData[] paths)
+            {
+                if (paths == null || paths.Length <= 0) return;
+                var fid = tool.current.id;
+                lock (_lock)
+                {
+                    foreach (var item in paths)
+                    {
+                        queue.Enqueue(item);
+                    }
+                }
+            }
+            public override void Update()
+            {
+                LoopUpLoad();
+            }
+            private async void LoopUpLoad()
+            {
+                if (downloading) return;
+                DownLoadData data = null;
+                lock (_lock)
+                {
+                    count = queue.Count;
+                    if (queue.Count > 0)
+                    {
+                        data = queue.Dequeue();
+                    }
+                }
+                if (data != null)
+                {
+                    current = this;
+                    downloading = true;
+                    await tool.DownLoadFile(data.fid, data.name);
+                    downloading = false;
+                    current = null;
+                }
+            }
+            protected override void SetProgressTxt(ProgressInfo value)
+            {
+                switch (value.state)
+                {
+                    case ProgressState.Start:
+                    case ProgressState.Ready:
+                        progress = 0f;
+                        progressTxt = string.Format(txtFormat, progress.ToString("0.00 %"), value.fileName,count);
+                        break;
+                    case ProgressState.Progressing:
+                        progress = value.current / (float)value.total;
+                        progressTxt = string.Format(txtFormat, progress.ToString("0.00 %"), value.fileName, count);
+                        break;
+                    case ProgressState.Finish:
+                        break;
+                    default:
+                        break;
+                }
+
+            }
+
+        }
+        public class UpLoadProgressBar : ProgressBarView
+        {
+            private DiskTool tool { get { return _window.tool; } }
+            private Queue<UpLoadData> queue = new Queue<UpLoadData>();
+            private object _lock = new object();
+            public UpLoadProgressBar() : base("UpLoad ( {2} ) - ({0}) \t{1}") { }
+            private bool downloading = false;
+            public int count = 0;
+
+            public override void Update()
+            {
+                LoopUpLoad();
+            }
+            private class UpLoadData
+            {
+                public long fid;
+                public string path;
+            }
+            public void UpLoad(string[] paths)
+            {
+                if (paths == null || paths.Length <= 0) return;
+                var fid = tool.current.id;
+                paths = paths.Distinct().ToArray();
+                lock (_lock)
+                {
+                    foreach (var item in paths)
+                    {
+                        queue.Enqueue(new UpLoadData()
+                        {
+                            path = item,
+                            fid = fid,
+                        });
+                    }
+                }
+               
+            }
+            private async void LoopUpLoad()
+            {
+                if (downloading) return;
+
+                UpLoadData data = null;
+                lock (_lock)
+                {
+                    count = queue.Count;
+                    if (queue.Count > 0)
+                    {
+                        data = queue.Dequeue();
+                    }
+                }
+                if (data != null)
+                {
+                    current = this;
+                    downloading = true;
+                    await tool.UpLoadFile(data.path, data.fid, false, this);
+                    current = null;
+                    downloading = false;
+                }
+            }
+            protected override void SetProgressTxt(ProgressInfo value)
+            {
+                switch (value.state)
+                {
+                    case ProgressState.Start:
+                    case ProgressState.Ready:
+                        progress = 0f;
+                        progressTxt = string.Format(txtFormat, progress.ToString("0.00 %"), value.fileName, count);
+                        break;
+                    case ProgressState.Progressing:
+                        progress = value.current / (float)value.total;
+                        progressTxt = string.Format(txtFormat, progress.ToString("0.00 %"), value.fileName, count);
+                        break;
+                    case ProgressState.Finish:
+                        break;
+                    default:
+                        break;
+                }
+
+            }
+
+        }
+
         [System.Serializable]
         private class Setting
         {
             public bool open = false;
             public string rootSavePath = "Asset";
+            public bool upload;
         }
 
         private Setting set=new  Setting();
@@ -913,12 +1135,11 @@ namespace LanZouWindow
         private DiskTool tool;
         private string cookiepath = "";
         private ContentPage content;
-        private bool repaint = false;
 
         public static LanzouCookie cookie;
         private static DiskWindow _window;
-        private ProgressBarView downLoad = new ProgressBarView("({0}) DownLoad\t{1}");
-        private ProgressBarView upLoad = new ProgressBarView("({0}) UpLoad\t{1}");
+        private DownLoadProgressBar downLoad = new DownLoadProgressBar();
+        private UpLoadProgressBar upLoad = new UpLoadProgressBar();
 
     }
 
@@ -947,13 +1168,48 @@ namespace LanZouWindow
         private void OnGUI()
         {
             var local = new Rect(Vector2.zero, position.size);
+            if (set.upload)
+            {
+                local.height-=200;
+            }
             var rs = local.HorizontalSplit(20);
             var rs1 = rs[1].HorizontalSplit(rs[1].height - 20);
             ToolBar(rs[0]);
             content.OnGUI(rs1[0]);
-            if (ProgressBarView.current!=null) ProgressBarView.current.OnGUI(rs1[1].Zoom(AnchorType.MiddleCenter, -6));
-            if (repaint) Repaint();
+            if (ProgressBarView.current != null) {
+                ProgressBarView.current.OnGUI(rs1[1].Zoom(AnchorType.MiddleCenter, -6));
+                Repaint();
+            }
+            if (set.upload)
+            {
+                UpLoad(new Rect(0, position.height - 200, position.width, 200));
+            }
+        }
 
+        private void UpLoad(Rect rect)
+        {
+            GUIStyle dragFileStyle = new GUIStyle("helpbox")
+            {
+                fontSize = 30,
+                alignment = TextAnchor.MiddleCenter
+            };
+            GUI.Box(rect, "");
+            GUI.Label(rect.Zoom( AnchorType.MiddleCenter,-10),Contents.dragFiles, dragFileStyle);
+            var info = DragAndDropTool.Drag(Event.current, rect);
+            if (info.enterArera && info.compelete && Event.current.type== EventType.Used)
+            {
+                if (info.paths != null && info.paths.Length > 0)
+                {
+                    upLoad.UpLoad(info.paths);
+                }
+            }
+        }
+
+
+        private void Update()
+        {
+            upLoad.Update();
+            downLoad.Update();
         }
         private void ToolBar(Rect rect)
         {
@@ -1015,6 +1271,14 @@ namespace LanZouWindow
                             GUILayout.Label(set.rootSavePath);
                         }
 
+                        var r = EditorGUILayout.GetControlRect(GUILayout.Width(40));
+                        GUI.contentColor = Color.green;
+                        if (GUI.Button(r,Contents.upcloud))
+                        {
+                            set.upload = !set.upload;
+                        }
+                        GUI.contentColor = Color.white;
+             
                     }
                     GUILayout.EndHorizontal();
 
