@@ -1000,11 +1000,17 @@ namespace LanZouWindow
             }
             private async void LoopUpLoad()
             {
-                if (downloading) return;
-                DownLoadData data = null;
                 lock (_lock)
                 {
                     count = queue.Count;
+                }
+                if (downloading) {
+                    count++;
+                    return;
+                }
+                DownLoadData data = null;
+                lock (_lock)
+                {
                     if (queue.Count > 0)
                     {
                         data = queue.Dequeue();
@@ -1079,7 +1085,15 @@ namespace LanZouWindow
             }
             private async void LoopUpLoad()
             {
-                if (downloading) return;
+                lock (_lock)
+                {
+                    count = queue.Count;
+                }
+                if (downloading)
+                {
+                    count++;
+                    return;
+                }
 
                 UpLoadData data = null;
                 lock (_lock)
@@ -1184,6 +1198,8 @@ namespace LanZouWindow
             {
                 UpLoad(new Rect(0, position.height - 200, position.width, 200));
             }
+            upLoad.Update();
+            downLoad.Update();
         }
 
         private void UpLoad(Rect rect)
@@ -1206,11 +1222,6 @@ namespace LanZouWindow
         }
 
 
-        private void Update()
-        {
-            upLoad.Update();
-            downLoad.Update();
-        }
         private void ToolBar(Rect rect)
         {
             using (new EditorGUI.DisabledGroupScope(tool.current == null))
