@@ -1098,7 +1098,6 @@ namespace LanZouWindow
                 UpLoadData data = null;
                 lock (_lock)
                 {
-                    count = queue.Count;
                     if (queue.Count > 0)
                     {
                         data = queue.Dequeue();
