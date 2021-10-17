@@ -65,16 +65,22 @@ namespace LanZouWindow
     }
     partial class DiskWindow
     {
+        public enum SelectType
+        {
+            Home,
+            Cound,
+            List,
+        }
         static class Contents
         {
             private static GUIContent folder = EditorGUIUtility.IconContent("Folder Icon");
-            public static GUIContent name = new GUIContent("Name","文件名字");
-            public static GUIContent size = new GUIContent("Size","文件大小");
-            public static GUIContent password = new GUIContent("*","有密码？");
-            public static GUIContent desc = new GUIContent("...","文件描述");
-            public static GUIContent down = new GUIContent("Downs","下载次数");
-            public static GUIContent newfolder =new GUIContent(EditorGUIUtility.IconContent("Folder Icon")) { tooltip="新建文件夹"};
-            public static GUIContent uploadfile =new GUIContent(EditorGUIUtility.IconContent("d_CreateAddNew@2x")) { tooltip="上传文件"};
+            public static GUIContent name = new GUIContent("Name", "文件名字");
+            public static GUIContent size = new GUIContent("Size", "文件大小");
+            public static GUIContent password = new GUIContent("*", "有密码？");
+            public static GUIContent desc = new GUIContent("...", "文件描述");
+            public static GUIContent down = new GUIContent("Downs", "下载次数");
+            public static GUIContent newfolder = new GUIContent(EditorGUIUtility.IconContent("Folder Icon")) { tooltip = "新建文件夹" };
+            public static GUIContent uploadfile = new GUIContent(EditorGUIUtility.IconContent("d_CreateAddNew@2x")) { tooltip = "上传文件" };
             public static GUIContent goback = new GUIContent(EditorGUIUtility.IconContent("ArrowNavigationLeft")) { tooltip = "返回" };
             public static GUIContent gofront = new GUIContent(EditorGUIUtility.IconContent("ArrowNavigationRight")) { tooltip = "前进" };
             public static GUIContent goup = new GUIContent(EditorGUIUtility.IconContent("d_scrollup")) { tooltip = "返回上一级" };
@@ -82,15 +88,16 @@ namespace LanZouWindow
             public static GUIContent set = new GUIContent(EditorGUIUtility.IconContent("d_TerrainInspector.TerrainToolSettings")) { tooltip = "设置" };
             public static GUIContent choosefolder = new GUIContent(EditorGUIUtility.IconContent("Folder Icon")) { tooltip = "选择保存路径" };
             public static GUIContent choose = new GUIContent("Auto", "选择子文件夹");
-            public static GUIContent path = new GUIContent("Path:","当前路径");
+            public static GUIContent path = new GUIContent("Path:", "当前路径");
             public static GUIContent titleContent = new GUIContent("LanzouDisk");
             public static GUIContent files = new GUIContent("Files");
             public static GUIContent folders = new GUIContent("Folders");
-            public static GUIContent upcloud = new GUIContent(EditorGUIUtility.IconContent("d_CloudConnect").image,"上传") { text="↑"};
+            public static GUIContent upcloud = new GUIContent(EditorGUIUtility.IconContent("d_CloudConnect").image, "上传") { text = "↑" };
             public static GUIContent downcloud = new GUIContent(EditorGUIUtility.IconContent("d_CloudConnect").image) { text = "↓" };
-            public static GUIContent dragFiles = new GUIContent(EditorGUIUtility.IconContent("console.infoicon").image,"拖拽文件到此处") { text = "Drag Files Here" };
-
-            
+            public static GUIContent dragFiles = new GUIContent(EditorGUIUtility.IconContent("console.infoicon").image, "拖拽文件到此处") { text = "Drag Files Here" };
+            public static GUIContent list = new GUIContent(EditorGUIUtility.IconContent("d_align_vertically_center").image, "传输列表") { };
+            public static GUIContent home = new GUIContent(EditorGUIUtility.IconContent("d_CanvasGroup Icon").image, "主页") { };
+            public static GUIContent[] toolSelect = new GUIContent[] { Contents.home,  Contents.upcloud, Contents.list, };
             public static GUIContent GetFolder(string name)
             {
                 return new GUIContent(name, folder.image);
@@ -980,7 +987,6 @@ namespace LanZouWindow
                 public long fid;
                 public string name;
             }
-            private bool downloading = false;
             public int count=0;
             public void DownLoad(DownLoadData[] paths)
             {
@@ -1004,24 +1010,20 @@ namespace LanZouWindow
                 {
                     count = queue.Count;
                 }
-                if (downloading) {
-                    count++;
-                    return;
-                }
+                if (current != null) return;
                 DownLoadData data = null;
                 lock (_lock)
                 {
                     if (queue.Count > 0)
                     {
-                        data = queue.Dequeue();
+                        data = queue.Peek();
                     }
                 }
                 if (data != null)
                 {
                     current = this;
-                    downloading = true;
                     await tool.DownLoadFile(data.fid, data.name);
-                    downloading = false;
+                    queue.Dequeue();
                     current = null;
                 }
             }
@@ -1046,6 +1048,19 @@ namespace LanZouWindow
 
             }
 
+            public void OnListGUI()
+            {
+                GUILayout.Label($"Download List Count ({count})");
+                foreach (var item in queue)
+                {
+                    GUILayout.BeginHorizontal();
+                    {
+                        GUILayout.Space(20);
+                        GUILayout.Label(item.name, item == queue.Peek() ? (GUIStyle)"SelectionRect" : "label");
+                    }
+                    GUILayout.EndHorizontal();
+                }
+            }
         }
         public class UpLoadProgressBar : ProgressBarView
         {
@@ -1053,7 +1068,6 @@ namespace LanZouWindow
             private Queue<UpLoadData> queue = new Queue<UpLoadData>();
             private object _lock = new object();
             public UpLoadProgressBar() : base("UpLoad ( {2} ) - ({0}) \t{1}") { }
-            private bool downloading = false;
             public int count = 0;
 
             public override void Update()
@@ -1089,27 +1103,22 @@ namespace LanZouWindow
                 {
                     count = queue.Count;
                 }
-                if (downloading)
-                {
-                    count++;
-                    return;
-                }
+                if (current != null) return;
 
                 UpLoadData data = null;
                 lock (_lock)
                 {
                     if (queue.Count > 0)
                     {
-                        data = queue.Dequeue();
+                        data = queue.Peek();
                     }
                 }
                 if (data != null)
                 {
                     current = this;
-                    downloading = true;
                     await tool.UpLoadFile(data.path, data.fid, false, this);
+                    queue.Dequeue();
                     current = null;
-                    downloading = false;
                 }
             }
             protected override void SetProgressTxt(ProgressInfo value)
@@ -1133,14 +1142,30 @@ namespace LanZouWindow
 
             }
 
+            public void OnListGUI()
+            {
+                GUILayout.Label($"Upload List Count ({count})");
+                foreach (var item in queue)
+                {
+                    GUILayout.BeginHorizontal();
+                    {
+                        GUILayout.Space(20);
+                      
+                        GUILayout.Label(item.path, item==queue.Peek()?(GUIStyle)"SelectionRect":"label");
+                    }
+                    GUILayout.EndHorizontal();
+                }
+            }
         }
+
 
         [System.Serializable]
         private class Setting
         {
             public bool open = false;
             public string rootSavePath = "Asset";
-            public bool upload;
+            public SelectType select;
+           
         }
 
         private Setting set=new  Setting();
@@ -1181,7 +1206,7 @@ namespace LanZouWindow
         private void OnGUI()
         {
             var local = new Rect(Vector2.zero, position.size);
-            if (set.upload)
+            if (set.select!= SelectType.Home)
             {
                 local.height-=200;
             }
@@ -1193,12 +1218,32 @@ namespace LanZouWindow
                 ProgressBarView.current.OnGUI(rs1[1].Zoom(AnchorType.MiddleCenter, -6));
                 Repaint();
             }
-            if (set.upload)
+            if (set.select != SelectType.Home)
             {
-                UpLoad(new Rect(0, position.height - 200, position.width, 200));
+                var rect = new Rect(0, position.height - 200, position.width, 200);
+                if (set.select== SelectType.List)
+                {
+                    ShowList(rect);
+
+                }
+                else if (set.select == SelectType.Cound)
+                {
+                    UpLoad(rect);
+                }
             }
             upLoad.Update();
             downLoad.Update();
+        }
+
+        private void ShowList(Rect rect)
+        {
+            GUI.Box(rect, "");
+            GUILayout.BeginArea(rect);
+            {
+                upLoad.OnListGUI();
+                downLoad.OnListGUI();
+            }
+            GUILayout.EndArea();
         }
 
         private void UpLoad(Rect rect)
@@ -1281,14 +1326,7 @@ namespace LanZouWindow
                             GUILayout.Label(set.rootSavePath);
                         }
 
-                        var r = EditorGUILayout.GetControlRect(GUILayout.Width(40));
-                        GUI.contentColor = Color.green;
-                        if (GUI.Button(r,Contents.upcloud))
-                        {
-                            set.upload = !set.upload;
-                        }
-                        GUI.contentColor = Color.white;
-             
+                        set.select = (SelectType)GUILayout.Toolbar((int)set.select,Contents.toolSelect);
                     }
                     GUILayout.EndHorizontal();
 
