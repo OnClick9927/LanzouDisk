@@ -824,8 +824,6 @@ namespace LanZouCloudAPI
                         _content.Add(new StringContent(filename, Encoding.UTF8), "name");
                         _content.Add(new UTF8EncodingStreamContent(fileStream, "upload_file", filename));
 
-                        File.WriteAllBytes("b.txt", await _content.ReadAsByteArrayAsync());
-
                         HttpContent content;
                         if (progress != null)
                         {
@@ -894,16 +892,15 @@ namespace LanZouCloudAPI
             public UTF8EncodingStreamContent(Stream content, string name, string fileName) : base(content)
             {
                 this.fileName = fileName;
-#if UNITY_5_3_OR_NEWER
-                Headers.Add("Content-Type", "application/octet-stream");
-                Headers.Add("Content-Disposition", $"form-data; name=\"{name}\"; filename=\"_replace_\"");
-#else
-
                 var fn = new StringBuilder();
                 foreach (var b in Encoding.UTF8.GetBytes(fileName))
                 {
                     fn.Append((char)b);
                 }
+#if UNITY_5_3_OR_NEWER
+                Headers.Add("Content-Type", "application/octet-stream");
+                Headers.Add("Content-Disposition", $"form-data; name=\"{name}\"; filename=\"{fn}\"");
+#else
 
                 Headers.Add("Content-Type", "application/octet-stream");
                 Headers.Add("Content-Disposition", $"form-data; name=\"{name}\"; filename=\"{fn}\"");
@@ -915,7 +912,9 @@ namespace LanZouCloudAPI
 #if UNITY_5_3_OR_NEWER
                 stream.Position = 0;
                 var header = new StreamReader(stream).ReadToEnd();
-                var newHeader = header.Replace("filename=\"_replace_\"", $"filename=\"{fileName}\"");
+                var h = header.IndexOf("filename=\"") + "filename=\"".Length;
+                var t = header.IndexOf("\"", h);
+                var newHeader = header.Substring(0, h) + fileName + header.Substring(t);
                 var bytes = Encoding.UTF8.GetBytes(newHeader);
                 stream.Position = 0;
                 stream.Write(bytes, 0, bytes.Length);
@@ -1318,6 +1317,8 @@ namespace LanZouCloudAPI
                     {
                         using (var resp = await client.GetAsync(fake_url))
                         {
+                            // TODO: if Status Code 200, 系统发现您的网络异常，需要验证后下载文件
+
                             if (resp.StatusCode != HttpStatusCode.Found)
                             {
                                 var _err6 = _rescode_msg(LanZouCode.NETWORK_ERROR) + "[6]";
