@@ -11,3 +11,5 @@ Assembly-CSharp-Editor.csproj
 LanzouDIsk.sln
 Assets/LanzouDisk/Editor/New Lanzou Cookie.asset
 Assets/LanzouDisk/Editor/New Lanzou Cookie.asset.meta
+Assets/LanzouDisk/Editor/NotShare/
+Assets/LanzouDisk/Editor/NotShare.meta
