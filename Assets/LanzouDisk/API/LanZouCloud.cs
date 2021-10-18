@@ -822,9 +822,7 @@ namespace LanZouCloudAPI
                         _content.Add(new StringContent(folder_id.ToString()), "folder_id");
                         _content.Add(new StringContent("WU_FILE_0"), "id");
                         _content.Add(new StringContent(filename, Encoding.UTF8), "name");
-
-                        var _scontent = new UTF8EncodingStreamContent(fileStream, filename);
-                        _content.Add(_scontent, "upload_file", filename);
+                        _content.Add(new UTF8EncodingStreamContent(fileStream, "upload_file", filename));
 
                         File.WriteAllBytes("b.txt", await _content.ReadAsByteArrayAsync());
 
@@ -893,12 +891,12 @@ namespace LanZouCloudAPI
         {
             string fileName;
 
-            public UTF8EncodingStreamContent(Stream content, string fileName) : base(content)
+            public UTF8EncodingStreamContent(Stream content, string name, string fileName) : base(content)
             {
                 this.fileName = fileName;
 #if UNITY_5_3_OR_NEWER
                 Headers.Add("Content-Type", "application/octet-stream");
-                Headers.Add("Content-Disposition", $"form-data; name=\"upload_file\"; filename=\"_replace_\"");
+                Headers.Add("Content-Disposition", $"form-data; name=\"{name}\"; filename=\"_replace_\"");
 #else
 
                 var fn = new StringBuilder();
@@ -908,7 +906,7 @@ namespace LanZouCloudAPI
                 }
 
                 Headers.Add("Content-Type", "application/octet-stream");
-                Headers.Add("Content-Disposition", $"form-data; name=\"upload_file\"; filename=\"{fn}\"");
+                Headers.Add("Content-Disposition", $"form-data; name=\"{name}\"; filename=\"{fn}\"");
 #endif
             }
 
