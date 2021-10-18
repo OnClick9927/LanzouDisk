@@ -519,6 +519,7 @@ namespace LanZouWindow
                 var ds = await lzy.GetFolderList(id);
                 var fs = await lzy.GetFileList(id);
                 _window.data.FreshFolder(id, ds.folders, fs.files);
+                current= _window.data.FindFolderById(id);
                 freshing = false;
             }
 
@@ -676,8 +677,8 @@ namespace LanZouWindow
             }
 
 
-            private Stack<FolderData> memory = new Stack<FolderData>();
-            private Stack<FolderData> stack = new Stack<FolderData>();
+            private Stack<long> memory = new Stack<long>();
+            private Stack<long> stack = new Stack<long>();
             private FolderData _current;
             public FolderData current
             {
@@ -695,8 +696,8 @@ namespace LanZouWindow
                 {
                     memory.Clear();
                 }
-                stack.Push(data);
-                current = stack.Peek();
+                stack.Push(id);
+                current = _window.data.FindFolderById(stack.Peek());
             }
             public bool CanGoUp()
             {
@@ -721,17 +722,34 @@ namespace LanZouWindow
                 if (stack.Count <= 1) return;
                 var data = stack.Pop();
                 memory.Push(data);
-                current = stack.Peek();
-                FreshContent();
-
+                var find = _window.data.FindFolderById(stack.Peek());
+                if (find ==null)
+                {
+                    stack.Pop();
+                    GoBack();
+                }
+                else
+                {
+                    current = find;
+                    FreshContent();
+                }
             }
             public void GoFront()
             {
                 if (memory.Count <= 0) return;
                 var data = memory.Pop();
                 stack.Push(data);
-                current = stack.Peek();
-                FreshContent();
+                var find = _window.data.FindFolderById(stack.Peek());
+                if (find == null)
+                {
+                    stack.Pop();
+                    GoFront();
+                }
+                else
+                {
+                    current = find;
+                    FreshContent();
+                }
             }
 
         }
@@ -741,6 +759,7 @@ namespace LanZouWindow
 
             public class FileData
             {
+                public long pid;
                 public long id;
                 public string name;
                 public string time;
@@ -806,13 +825,16 @@ namespace LanZouWindow
                 if (id == -1) return root;
                 return root.allfolders.Find(_data => { return _data.id == id; });
             }
-            public async void FreshFolder(long id, List<CloudFolder> folders, List<CloudFile> fs)
+            public void FreshFolder(long id, List<CloudFolder> folders, List<CloudFile> fs)
             {
                 if (id==-1)
                 {
-                    root = new Root() { id = -1, path = "Root" };
-                    root.Clear();
-                    root.allfolders.Add(root);
+                    if (root==null)
+                    {
+                        root = new Root() { id = -1, path = "Root" };
+                        root.Clear();
+                        root.allfolders.Add(root);
+                    }
                 }
                 FolderData _f = root.allfolders.Find(_data => { return _data.id == id; });
                 if (_f == null)
@@ -835,17 +857,14 @@ namespace LanZouWindow
                     _f.files = fs.ConvertAll(data =>
                     {
                         FileData _data = data;
+                        _data.pid = data.id;
                         return _data;
                     });
                 }
-
-
+                root.allfiles.RemoveAll((data) => { return data.pid == _f.id; });
+                root.allfolders.RemoveAll((data) => { return data.pid == _f.id; });
                 root.allfiles.AddRange(_f.files);
                 root.allfolders.AddRange(_f.folders);
-                //for (int i = 0; i < _f.folders.Count; i++)
-                //{
-                //    await tool.FreshFolder(_f.folders[i].id);
-                //}
             }
 
         }
