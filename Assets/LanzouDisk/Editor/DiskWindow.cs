@@ -578,7 +578,7 @@ namespace LanZouWindow
                 var code = await lzy.UploadFile(file_path, folder_id, _window.set.uploadOverWrite, progress);
                 if (code.code == LanZouCode.SUCCESS)
                 {
-                    await FreshFolder(current.id);
+                    await FreshFolder(folder_id);
                     FreshContent();
                 }
                 else
