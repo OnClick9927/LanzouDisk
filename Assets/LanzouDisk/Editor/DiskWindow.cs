@@ -1355,7 +1355,7 @@ namespace LanZouWindow
                         using (new EditorGUI.DisabledGroupScope(!tool.CanGoBack()))
                         {
 
-                            if (GUILayout.Button(Contents.goback, EditorStyles.toolbarButton))
+                            if (GUILayout.Button(Contents.goback, EditorStyles.toolbarButton,GUILayout.Width(30)))
                             {
                                 tool.GoBack();
                             }
@@ -1363,7 +1363,7 @@ namespace LanZouWindow
                         using (new EditorGUI.DisabledGroupScope(!tool.CanGoFront()))
                         {
 
-                            if (GUILayout.Button(Contents.gofront, EditorStyles.toolbarButton))
+                            if (GUILayout.Button(Contents.gofront, EditorStyles.toolbarButton, GUILayout.Width(30)))
                             {
                                 tool.GoFront();
                             }
@@ -1371,31 +1371,35 @@ namespace LanZouWindow
                         using (new EditorGUI.DisabledGroupScope(!tool.CanGoUp()))
                         {
 
-                            if (GUILayout.Button(Contents.goup, EditorStyles.toolbarButton))
+                            if (GUILayout.Button(Contents.goup, EditorStyles.toolbarButton, GUILayout.Width(30)))
                             {
                                 tool.GoUp();
                             }
                         }
-                        if (GUILayout.Button(Contents.fresh, EditorStyles.toolbarButton))
+                        if (GUILayout.Button(Contents.fresh, EditorStyles.toolbarButton, GUILayout.Width(30)))
                         {
                             tool.FreshCurrent();
                         }
-                        if (GUILayout.Button(Contents.help, EditorStyles.toolbarButton))
+                        if (GUILayout.Button(Contents.help, EditorStyles.toolbarButton, GUILayout.Width(30)))
                         {
                             Application.OpenURL("https://up.woozooo.com/");
                         }
                         GUILayout.Space(10);
                         using (new EditorGUI.DisabledGroupScope(true))
                         {
-                            GUILayout.Label(Contents.path);
-                            GUILayout.TextField(tool.current == null ? "" : tool.current.path, GUILayout.MinWidth(300));
+                            GUILayout.Label(Contents.path, GUILayout.Width(30));
+                            GUILayout.TextField(tool.current == null ? "" : tool.current.path, GUILayout.ExpandWidth(true));
                             if (tool.freshing)
                             {
-                                GUILayout.Label(Contents.GetFreshing());
+                                GUILayout.Label(Contents.GetFreshing(),GUILayout.Width(30));
+                            }
+                            else
+                            {
+                                GUILayout.Space(30);
                             }
                         }
-                        GUILayout.FlexibleSpace();
-                        set.select = (SelectType)GUILayout.Toolbar((int)set.select, Contents.toolSelect, EditorStyles.toolbarButton);
+                        //GUILayout.FlexibleSpace();
+                        set.select = (SelectType)GUILayout.Toolbar((int)set.select, Contents.toolSelect, EditorStyles.toolbarButton, GUILayout.Width(200));
                     }
                     GUILayout.EndHorizontal();
 
