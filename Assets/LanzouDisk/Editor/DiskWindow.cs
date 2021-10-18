@@ -140,6 +140,7 @@ namespace LanZouWindow
                         {
                             fid = data.id,
                             name = data.name,
+                            floder=false
                         };
                     }
                     _window.downLoad.DownLoad(datas);
@@ -327,6 +328,25 @@ namespace LanZouWindow
                     int id = (int)userData;
                     BeginRename(GetRows().ToList().Find(_data => _data.id == id));
                 }
+                private void DownLoad(object userData)
+                {
+
+                    IList<int> list = (IList<int>)userData;
+                    if (list == null || list.Count <= 0) return;
+                    DownLoadProgressBar.DownLoadData[] datas = new DownLoadProgressBar.DownLoadData[list.Count];
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        var id = list[i];
+                        var data = folders.Find(_data => { return _data.id == id; });
+                        datas[i] = new DownLoadProgressBar.DownLoadData()
+                        {
+                            fid = data.id,
+                            name = data.name,
+                            floder=true,
+                        };
+                    }
+                    _window.downLoad.DownLoad(datas);
+                }
 
 
 
@@ -336,6 +356,8 @@ namespace LanZouWindow
                     menu.AddItem(new GUIContent("Rename"), false, OpenRename, id);
                     menu.AddItem(new GUIContent("Share"), false, Share, id);
                     menu.AddItem(new GUIContent("Delete"), false, Delete, this.GetSelection());
+                    menu.AddItem(new GUIContent("DownLoad"), false, DownLoad, this.GetSelection());
+
                     var data = folders.Find(_data => { return _data.id == id; });
                     if (!string.IsNullOrEmpty(data.desc))
                     {
@@ -519,14 +541,16 @@ namespace LanZouWindow
                 var ds = await lzy.GetFolderList(id);
                 var fs = await lzy.GetFileList(id);
                 _window.data.FreshFolder(id, ds.folders, fs.files);
-                current = _window.data.FindFolderById(id);
+                if (current!=null &&current.id==id)
+                {
+                    current = _window.data.FindFolderById(id);
+                }
                 freshing = false;
             }
 
             public async void FreshCurrent()
             {
                 await FreshFolder(current.id);
-                FreshContent();
             }
 
             public async void Share(long fid, bool is_file = true)
@@ -558,7 +582,7 @@ namespace LanZouWindow
                 }
 
             }
-            public async Task DownLoadFile(long fid, string name, IProgress<ProgressInfo> progress = null)
+            public async Task DownLoadFile(long fid, string name, string savePath,IProgress<ProgressInfo> progress = null)
             {
                 if (string.IsNullOrEmpty(_window.set.rootSavePath))
                 {
@@ -568,7 +592,7 @@ namespace LanZouWindow
                 string pname = name.Contains(".") ? name.Split('.')[0] : "";
                 string ex = name.Contains(".") ? name.Split('.')[1] : "";
                 var info = await lzy.GetFileShareInfo(fid);
-                var code = await lzy.DownloadFileByUrl(info.url, _window.set.rootSavePath, info.password, _window.set.downloadOverWrite, progress);
+                var code = await lzy.DownloadFileByUrl(info.url, savePath, info.password, _window.set.downloadOverWrite, progress);
                 if (code.code != LanZouCode.SUCCESS)
                 {
                     Debug.LogError("Down load Err " + code);
@@ -581,7 +605,6 @@ namespace LanZouWindow
                 if (code.code == LanZouCode.SUCCESS)
                 {
                     await FreshFolder(folder_id);
-                    FreshContent();
                 }
                 else
                 {
@@ -600,7 +623,6 @@ namespace LanZouWindow
                     if (isRoot)
                     {
                         await FreshFolder(folder_id);
-                        FreshContent();
                     }
                 }
                 else
@@ -632,7 +654,24 @@ namespace LanZouWindow
                     await UpLoadFolder(dir, result.id, progress, false);
                 }
             }
-
+            public async Task DownLoadFolder(long fid, string name, string savePath,IProgress<ProgressInfo> progress = null)
+            {
+                string path = Path.Combine(savePath, name);
+                if (!Directory.Exists(path))
+                {
+                    Directory.CreateDirectory(path);
+                }
+                var ds = await lzy.GetFolderList(fid);
+                var fs = await lzy.GetFileList(fid);
+                foreach (var item in ds.folders)
+                {
+                    await DownLoadFolder(item.id, item.name, path, progress);
+                }
+                foreach (var item in fs.files)
+                {
+                    await DownLoadFile(item.id, item.name, path, progress);
+                }
+            }
             public void OpenFolder(int id)
             {
                 SetCurrentFolder(id);
@@ -645,7 +684,6 @@ namespace LanZouWindow
                 if (result.code == LanZouCode.SUCCESS)
                 {
                     await FreshFolder(current.id);
-                    FreshContent();
                 }
                 else
                 {
@@ -659,7 +697,6 @@ namespace LanZouWindow
                 if (result.code == LanZouCode.SUCCESS)
                 {
                     await FreshFolder(current.id);
-                    FreshContent();
                 }
                 else
                 {
@@ -673,7 +710,6 @@ namespace LanZouWindow
                 if (code.code == LanZouCode.SUCCESS)
                 {
                     await FreshFolder(current.id);
-                    FreshContent();
                 }
                 else
                 {
@@ -689,7 +725,6 @@ namespace LanZouWindow
                     if (result.code == LanZouCode.SUCCESS)
                     {
                         await FreshFolder(current.id);
-                        FreshContent();
                     }
                     else
                     {
@@ -702,7 +737,6 @@ namespace LanZouWindow
                     if (result.code == LanZouCode.SUCCESS)
                     {
                         await FreshFolder(current.id);
-                        FreshContent();
                     }
                     else
                     {
@@ -797,6 +831,7 @@ namespace LanZouWindow
                 }
             }
 
+           
         }
         public class DiskData
         {
@@ -986,6 +1021,7 @@ namespace LanZouWindow
             {
                 public long fid;
                 public string name;
+                public bool floder;
             }
             public int count = 0;
             public void DownLoad(DownLoadData[] paths)
@@ -1022,7 +1058,11 @@ namespace LanZouWindow
                 if (data != null)
                 {
                     current = this;
-                    await tool.DownLoadFile(data.fid, data.name, this);
+                    if (data.floder)
+                        await tool.DownLoadFolder(data.fid, data.name, _window.set.rootSavePath, this);
+
+                    else
+                        await tool.DownLoadFile(data.fid, data.name, _window.set.rootSavePath, this);
                     queue.Dequeue();
                     current = null;
                 }
