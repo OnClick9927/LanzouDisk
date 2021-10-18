@@ -53,6 +53,7 @@ namespace LanZouWindow
             public static GUIContent NewFolderDescLabel = new GUIContent("New Folder Desciption", "新建文件夹描述");
             public static GUIContent NewFolderNameLabel = new GUIContent("New Folder Name", "新建文件夹名称");
             public static GUIContent help = EditorGUIUtility.IconContent("_Help");
+            public static GUIContent web = EditorGUIUtility.IconContent("d_BuildSettings.Web.Small");
 
             public static GUIContent GetFolder(string name)
             {
@@ -1380,9 +1381,13 @@ namespace LanZouWindow
                         {
                             tool.FreshCurrent();
                         }
-                        if (GUILayout.Button(Contents.help, EditorStyles.toolbarButton, GUILayout.Width(30)))
+                        if (GUILayout.Button(Contents.web, EditorStyles.toolbarButton, GUILayout.Width(30)))
                         {
                             Application.OpenURL("https://up.woozooo.com/");
+                        }
+                        if (GUILayout.Button(Contents.help, EditorStyles.toolbarButton, GUILayout.Width(30)))
+                        {
+                            Application.OpenURL("https://bbs.zsxwz.com/thread-2505.html");
                         }
                         GUILayout.Space(10);
                         using (new EditorGUI.DisabledGroupScope(true))
