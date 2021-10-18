@@ -11,69 +11,18 @@ using static LanZouWindow.DiskWindow.DiskData;
 
 namespace LanZouWindow
 {
-    public static class DragAndDropTool
-    {
-        public class Info
-        {
-            public bool dragging;
-            public bool enterArera;
-            public bool compelete;
-            public UnityEngine.Object[] objectReferences { get { return DragAndDrop.objectReferences; } }
-            public string[] paths { get { return DragAndDrop.paths; } }
-            public DragAndDropVisualMode visualMode { get { return DragAndDrop.visualMode; } }
-            public int activeControlID { get { return DragAndDrop.activeControlID; } }
-        }
-
-        private static bool _dragging;
-        private static bool _enterArera;
-        private static bool _compelete;
-        private static Info _info = new Info();
-        public static Info Drag(Event eve, Rect Content, DragAndDropVisualMode mode = DragAndDropVisualMode.Generic)
-        {
-            switch (eve.type)
-            {
-                case EventType.DragUpdated:
-                    _dragging = true; _compelete = false;
-                    _enterArera = Content.Contains(eve.mousePosition);
-                    if (_enterArera)
-                    {
-                        DragAndDrop.visualMode = mode;
-                        Event.current.Use();
-                    }
-                    break;
-                case EventType.DragPerform:
-                    DragAndDrop.AcceptDrag();
-                    _enterArera = Content.Contains(eve.mousePosition);
-                    _compelete = true; _dragging = false;
-                    Event.current.Use();
-
-                    break;
-                case EventType.DragExited:
-                    _dragging = false; _compelete = true;
-                    _enterArera = Content.Contains(eve.mousePosition);
-                    break;
-                default:
-                    _dragging = false; _compelete = false;
-                    _enterArera = Content.Contains(eve.mousePosition);
-                    break;
-            }
-            _info.compelete = _compelete;
-            _info.enterArera = _enterArera;
-            _info.dragging = _dragging;
-            return _info;
-        }
-    }
     partial class DiskWindow
     {
         public enum SelectType
         {
             Home,
+            Set,
             Cound,
             List,
         }
         static class Contents
         {
-            private static GUIContent folder = EditorGUIUtility.IconContent("Folder Icon");
+            private static GUIContent folder =new GUIContent( EditorGUIUtility.IconContent("Folder Icon"));
             public static GUIContent name = new GUIContent("Name", "文件名字");
             public static GUIContent size = new GUIContent("Size", "文件大小");
             public static GUIContent password = new GUIContent("*", "有密码？");
@@ -97,11 +46,24 @@ namespace LanZouWindow
             public static GUIContent dragFiles = new GUIContent(EditorGUIUtility.IconContent("console.infoicon").image, "拖拽文件到此处") { text = "Drag Files Here" };
             public static GUIContent list = new GUIContent(EditorGUIUtility.IconContent("d_align_vertically_center").image, "传输列表") { };
             public static GUIContent home = new GUIContent(EditorGUIUtility.IconContent("d_CanvasGroup Icon").image, "主页") { };
-            public static GUIContent[] toolSelect = new GUIContent[] { Contents.home, Contents.upcloud, Contents.list, };
+            public static GUIContent[] toolSelect = new GUIContent[] { Contents.home,set, Contents.upcloud, Contents.list, };
+            public static GUIContent rootSavePathLabel=new GUIContent("Root Save Path", "本地根路径");
+            public static GUIContent downloadOverWriteLabel = new GUIContent("Download File OverWrite", "下载文件重写");
+            public static GUIContent uploadOverWriteLabel = new GUIContent("Upload File OverWrite", "上传文件重写");
+            public static GUIContent NewFolderDescLabel = new GUIContent("New Folder Desciption", "新建文件夹描述");
+            public static GUIContent NewFolderNameLabel = new GUIContent("New Folder Name", "新建文件夹名称");
+            public static GUIContent help = EditorGUIUtility.IconContent("_Help");
+
             public static GUIContent GetFolder(string name)
             {
-                return new GUIContent(name, folder.image);
+                folder.text = name;
+                return folder;
             }
+            public static GUIContent GetFreshing()
+            {
+                return EditorGUIUtility.IconContent($"d_WaitSpin{Math.Round(EditorApplication.timeSinceStartup % 11).ToString("00")}");
+            }
+
         }
         class ContentPage
         {
@@ -537,29 +499,27 @@ namespace LanZouWindow
             }
             public async void Login()
             {
+                freshing = true;
                 lzy = new LanZouCloud();
                 lzy.SetLogLevel(LanZouCloud.LogLevel.Info);
                 var result = await lzy.Login(cookie.ylogin, cookie.phpdisk_info);
                 if (result.code != LanZouCode.SUCCESS) return;
-                async void FreshData()
-                {
-                    var root = await lzy.GetFolderList(-1);
-                    var fs = await lzy.GetFileList(-1);
-                    await _window.data.ReadRoot(root.folders, fs.files);
-                    SetCurrentFolder(-1);
-                }
-                FreshData();
+                await FreshFolder(-1);
+                SetCurrentFolder(-1);
             }
             private LanZouCloud lzy;
             private void FreshContent()
             {
                 _window.content.FreshView();
             }
+            public bool freshing { get; private set; }
             public async Task FreshFolder(long id)
             {
+                freshing = true;
                 var ds = await lzy.GetFolderList(id);
                 var fs = await lzy.GetFileList(id);
                 _window.data.FreshFolder(id, ds.folders, fs.files);
+                freshing = false;
             }
 
             public async void FreshCurrent()
@@ -597,7 +557,7 @@ namespace LanZouWindow
                 }
 
             }
-            public async Task DownLoadFile(long fid, string name)
+            public async Task DownLoadFile(long fid, string name, IProgress<ProgressInfo> progress = null)
             {
                 if (string.IsNullOrEmpty(_window.set.rootSavePath))
                 {
@@ -607,15 +567,15 @@ namespace LanZouWindow
                 string pname = name.Contains(".") ? name.Split('.')[0] : "";
                 string ex = name.Contains(".") ? name.Split('.')[1] : "";
                 var info = await lzy.GetFileShareInfo(fid);
-                var code = await lzy.DownloadFileByUrl(info.url, _window.set.rootSavePath, info.password, true, _window.downLoad);
+                var code = await lzy.DownloadFileByUrl(info.url, _window.set.rootSavePath, info.password, _window.set.downloadOverWrite, progress);
                 if (code.code != LanZouCode.SUCCESS)
                 {
                     Debug.LogError("Down load Err " + code);
                 }
             }
-            public async Task UpLoadFile(string file_path, long folder_id = -1, bool overwrite = false, IProgress<ProgressInfo> progress = null)
+            public async Task UpLoadFile(string file_path, long folder_id = -1, IProgress<ProgressInfo> progress = null)
             {
-                var code = await lzy.UploadFile(file_path, folder_id, overwrite, progress);
+                var code = await lzy.UploadFile(file_path, folder_id, _window.set.uploadOverWrite, progress);
                 if (code.code == LanZouCode.SUCCESS)
                 {
                     await FreshFolder(current.id);
@@ -630,7 +590,8 @@ namespace LanZouWindow
             public void OpenFolder(int id)
             {
                 SetCurrentFolder(id);
-                FreshContent();
+                //FreshContent();
+                FreshCurrent();
             }
             public async void RenameFile(long file_id, string filename)
             {
@@ -662,7 +623,7 @@ namespace LanZouWindow
             }
             public async void NewFolder()
             {
-                var code = await lzy.CreateFolder("NewFolder", current.id);
+                var code = await lzy.CreateFolder(_window.set.NewFolderName, current.id, _window.set.NewFolderDesc);
                 if (code.code == LanZouCode.SUCCESS)
                 {
                     await FreshFolder(current.id);
@@ -845,40 +806,14 @@ namespace LanZouWindow
                 if (id == -1) return root;
                 return root.allfolders.Find(_data => { return _data.id == id; });
             }
-            public async Task ReadRoot(List<CloudFolder> folders, List<CloudFile> fs)
-            {
-                root = new Root() { id = -1, path = "Root" };
-                root.Clear();
-                if (folders != null)
-                {
-                    root.folders = folders.ConvertAll(data =>
-                    {
-                        FolderData _data = data;
-                        _data.pid = -1;
-                        _data.path = root.path + "/" + _data.name;
-                        return _data;
-                    });
-                }
-                if (fs != null)
-                {
-                    root.files = fs.ConvertAll(data =>
-                    {
-                        FileData _data = data;
-                        return _data;
-                    });
-                }
-
-                root.allfiles.AddRange(root.files);
-                root.allfolders.AddRange(root.folders);
-                root.allfolders.Add(root);
-                for (int i = 0; i < root.folders.Count; i++)
-                {
-                    await tool.FreshFolder(root.folders[i].id);
-                }
-            }
             public async void FreshFolder(long id, List<CloudFolder> folders, List<CloudFile> fs)
             {
-
+                if (id==-1)
+                {
+                    root = new Root() { id = -1, path = "Root" };
+                    root.Clear();
+                    root.allfolders.Add(root);
+                }
                 FolderData _f = root.allfolders.Find(_data => { return _data.id == id; });
                 if (_f == null)
                 {
@@ -907,10 +842,10 @@ namespace LanZouWindow
 
                 root.allfiles.AddRange(_f.files);
                 root.allfolders.AddRange(_f.folders);
-                for (int i = 0; i < _f.folders.Count; i++)
-                {
-                    await tool.FreshFolder(_f.folders[i].id);
-                }
+                //for (int i = 0; i < _f.folders.Count; i++)
+                //{
+                //    await tool.FreshFolder(_f.folders[i].id);
+                //}
             }
 
         }
@@ -1023,7 +958,7 @@ namespace LanZouWindow
                 if (data != null)
                 {
                     current = this;
-                    await tool.DownLoadFile(data.fid, data.name);
+                    await tool.DownLoadFile(data.fid, data.name,this);
                     queue.Dequeue();
                     current = null;
                 }
@@ -1117,7 +1052,7 @@ namespace LanZouWindow
                 if (data != null)
                 {
                     current = this;
-                    await tool.UpLoadFile(data.path, data.fid, false, this);
+                    await tool.UpLoadFile(data.path, data.fid, this);
                     queue.Dequeue();
                     current = null;
                 }
@@ -1163,10 +1098,12 @@ namespace LanZouWindow
         [System.Serializable]
         private class Setting
         {
-            public bool open = false;
-            public string rootSavePath = "Asset";
             public SelectType select;
-
+            public string rootSavePath = "Asset";
+            public bool uploadOverWrite=false;
+            public bool downloadOverWrite=true;
+            public string NewFolderName = "NewFolder";
+            public string NewFolderDesc;
         }
 
         private Setting set = new Setting();
@@ -1218,7 +1155,6 @@ namespace LanZouWindow
             if (ProgressBarView.current != null)
             {
                 ProgressBarView.current.OnGUI(rs1[1].Zoom(AnchorType.MiddleCenter, -6));
-                Repaint();
             }
             if (set.select != SelectType.Home)
             {
@@ -1232,15 +1168,46 @@ namespace LanZouWindow
                 {
                     UpLoad(rect);
                 }
+                else if (set. select == SelectType.Set)
+                {
+                    SettingGUI(rect);
+                }
             }
             upLoad.Update();
             downLoad.Update();
+            if (tool.freshing || ProgressBarView.current != null)
+            {
+                 Repaint();
+            }
+        }
+
+        private void SettingGUI(Rect rect)
+        {
+            GUI.Box(rect, "");
+            GUILayout.BeginArea(rect.Zoom(AnchorType.MiddleCenter, -20));
+            {
+                GUILayout.BeginHorizontal();
+                {
+                    EditorGUILayout.LabelField(Contents.rootSavePathLabel, new GUIContent(set.rootSavePath));
+                    if (GUILayout.Button(Contents.choosefolder, EditorStyles.toolbarButton, GUILayout.Width(30)))
+                    {
+                        tool.ChooseSavePath();
+                    }
+                }
+                GUILayout.EndHorizontal();
+                set.downloadOverWrite= EditorGUILayout.Toggle(Contents.downloadOverWriteLabel, set.downloadOverWrite);
+                set.uploadOverWrite= EditorGUILayout.Toggle(Contents.uploadOverWriteLabel, set.uploadOverWrite);
+                set.NewFolderName= EditorGUILayout.TextField(Contents.NewFolderNameLabel, set.NewFolderName);
+                GUILayout.Label(Contents.NewFolderDescLabel);
+                set.NewFolderDesc= EditorGUILayout.TextArea(set.NewFolderDesc,GUILayout.MinHeight(50));
+            }
+            GUILayout.EndArea();
         }
 
         private void ShowList(Rect rect)
         {
             GUI.Box(rect, "");
-            GUILayout.BeginArea(rect);
+            GUILayout.BeginArea(rect.Zoom(AnchorType.MiddleCenter, -20));
             {
                 upLoad.OnListGUI();
                 downLoad.OnListGUI();
@@ -1304,31 +1271,22 @@ namespace LanZouWindow
                         {
                             tool.FreshCurrent();
                         }
+                        if (GUILayout.Button(Contents.help, EditorStyles.toolbarButton))
+                        {
+                            Application.OpenURL("https://up.woozooo.com/");
+                        }
                         GUILayout.Space(10);
                         using (new EditorGUI.DisabledGroupScope(true))
                         {
-                            var op = GUILayout.MaxWidth(200);
-                            if (tool.current != null)
+                            GUILayout.Label(Contents.path);
+                            GUILayout.TextField(tool.current==null?"": tool.current.path, GUILayout.MinWidth(300));
+                            if (tool.freshing)
                             {
-                                GUILayout.Label(Contents.path);
-                                GUILayout.TextField(tool.current.path, op);
+                                GUILayout.Label(Contents.GetFreshing());
                             }
                         }
-                        GUILayout.FlexibleSpace();
-                        if (GUILayout.Button(Contents.set, GUILayout.Width(30)))
-                        {
-                            set.open = !set.open;
-                        }
-                        if (set.open)
-                        {
-                            if (GUILayout.Button(Contents.choosefolder, EditorStyles.toolbarButton, GUILayout.Width(30)))
-                            {
-                                tool.ChooseSavePath();
-                            }
-                            GUILayout.Label(set.rootSavePath);
-                        }
-
-                        set.select = (SelectType)GUILayout.Toolbar((int)set.select, Contents.toolSelect);
+                        GUILayout.FlexibleSpace();     
+                        set.select = (SelectType)GUILayout.Toolbar((int)set.select, Contents.toolSelect, EditorStyles.toolbarButton);
                     }
                     GUILayout.EndHorizontal();
 
