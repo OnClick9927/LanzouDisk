@@ -1,4 +1,4 @@
-﻿using LanZouCloudAPI;
+using LanZouCloudAPI;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,7 +22,7 @@ namespace LanZouWindow
         }
         static class Contents
         {
-            private static GUIContent folder =new GUIContent( EditorGUIUtility.IconContent("Folder Icon"));
+            private static GUIContent folder = new GUIContent(EditorGUIUtility.IconContent("Folder Icon"));
             public static GUIContent name = new GUIContent("Name", "文件名字");
             public static GUIContent size = new GUIContent("Size", "文件大小");
             public static GUIContent password = new GUIContent("*", "有密码？");
@@ -46,8 +46,8 @@ namespace LanZouWindow
             public static GUIContent dragFiles = new GUIContent(EditorGUIUtility.IconContent("console.infoicon").image, "拖拽文件到此处") { text = "Drag Files Here" };
             public static GUIContent list = new GUIContent(EditorGUIUtility.IconContent("d_align_vertically_center").image, "传输列表") { };
             public static GUIContent home = new GUIContent(EditorGUIUtility.IconContent("d_CanvasGroup Icon").image, "主页") { };
-            public static GUIContent[] toolSelect = new GUIContent[] { Contents.home,set, Contents.upcloud, Contents.list, };
-            public static GUIContent rootSavePathLabel=new GUIContent("Root Save Path", "本地根路径");
+            public static GUIContent[] toolSelect = new GUIContent[] { Contents.home, set, Contents.upcloud, Contents.list, };
+            public static GUIContent rootSavePathLabel = new GUIContent("Root Save Path", "本地根路径");
             public static GUIContent downloadOverWriteLabel = new GUIContent("Download File OverWrite", "下载文件重写");
             public static GUIContent uploadOverWriteLabel = new GUIContent("Upload File OverWrite", "上传文件重写");
             public static GUIContent NewFolderDescLabel = new GUIContent("New Folder Desciption", "新建文件夹描述");
@@ -519,7 +519,7 @@ namespace LanZouWindow
                 var ds = await lzy.GetFolderList(id);
                 var fs = await lzy.GetFileList(id);
                 _window.data.FreshFolder(id, ds.folders, fs.files);
-                current= _window.data.FindFolderById(id);
+                current = _window.data.FindFolderById(id);
                 freshing = false;
             }
 
@@ -574,6 +574,7 @@ namespace LanZouWindow
                     Debug.LogError("Down load Err " + code);
                 }
             }
+
             public async Task UpLoadFile(string file_path, long folder_id = -1, IProgress<ProgressInfo> progress = null)
             {
                 var code = await lzy.UploadFile(file_path, folder_id, _window.set.uploadOverWrite, progress);
@@ -585,6 +586,50 @@ namespace LanZouWindow
                 else
                 {
                     Debug.LogError(code);
+                }
+            }
+
+            public async Task UpLoadFolder(string file_path, long folder_id = -1, IProgress<ProgressInfo> progress = null, bool isRoot = true)
+            {
+                // 创建文件夹
+                var folderName = new DirectoryInfo(file_path).Name;
+                var result = await lzy.CreateFolder(folderName, folder_id);
+                if (result.code == LanZouCode.SUCCESS)
+                {
+                    // 只刷新根目录
+                    if (isRoot)
+                    {
+                        await FreshFolder(folder_id);
+                        FreshContent();
+                    }
+                }
+                else
+                {
+                    // 创建失败，不执行之后操作
+                    Debug.LogError(result);
+                    return;
+                }
+
+                // 上传子文件
+                foreach (var fi in Directory.GetFiles(file_path))
+                {
+                    var upload = await lzy.UploadFile(fi, result.id, _window.set.uploadOverWrite, progress);
+                    if (upload.code == LanZouCode.SUCCESS)
+                    {
+                        // 应该不需要刷新吧
+                        // await FreshFolder(result.id);
+                        // FreshContent();
+                    }
+                    else
+                    {
+                        Debug.LogError(upload);
+                    }
+                }
+
+                // 递归子文件夹（深度遍历）
+                foreach (var dir in Directory.GetDirectories(file_path))
+                {
+                    await UpLoadFolder(dir, result.id, progress, false);
                 }
             }
 
@@ -723,7 +768,7 @@ namespace LanZouWindow
                 var data = stack.Pop();
                 memory.Push(data);
                 var find = _window.data.FindFolderById(stack.Peek());
-                if (find ==null)
+                if (find == null)
                 {
                     stack.Pop();
                     GoBack();
@@ -827,9 +872,9 @@ namespace LanZouWindow
             }
             public void FreshFolder(long id, List<CloudFolder> folders, List<CloudFile> fs)
             {
-                if (id==-1)
+                if (id == -1)
                 {
-                    if (root==null)
+                    if (root == null)
                     {
                         root = new Root() { id = -1, path = "Root" };
                         root.Clear();
@@ -977,7 +1022,7 @@ namespace LanZouWindow
                 if (data != null)
                 {
                     current = this;
-                    await tool.DownLoadFile(data.fid, data.name,this);
+                    await tool.DownLoadFile(data.fid, data.name, this);
                     queue.Dequeue();
                     current = null;
                 }
@@ -1071,7 +1116,12 @@ namespace LanZouWindow
                 if (data != null)
                 {
                     current = this;
-                    await tool.UpLoadFile(data.path, data.fid, this);
+                    if (File.Exists(data.path))
+                        await tool.UpLoadFile(data.path, data.fid, this);
+                    else if (Directory.Exists(data.path))
+                        await tool.UpLoadFolder(data.path, data.fid, this);
+                    else
+                        Debug.LogError("Path not found: " + data.path);
                     queue.Dequeue();
                     current = null;
                 }
@@ -1119,8 +1169,8 @@ namespace LanZouWindow
         {
             public SelectType select;
             public string rootSavePath = "Asset";
-            public bool uploadOverWrite=false;
-            public bool downloadOverWrite=true;
+            public bool uploadOverWrite = false;
+            public bool downloadOverWrite = true;
             public string NewFolderName = "NewFolder";
             public string NewFolderDesc;
         }
@@ -1187,7 +1237,7 @@ namespace LanZouWindow
                 {
                     UpLoad(rect);
                 }
-                else if (set. select == SelectType.Set)
+                else if (set.select == SelectType.Set)
                 {
                     SettingGUI(rect);
                 }
@@ -1196,7 +1246,7 @@ namespace LanZouWindow
             downLoad.Update();
             if (tool.freshing || ProgressBarView.current != null)
             {
-                 Repaint();
+                Repaint();
             }
         }
 
@@ -1214,11 +1264,11 @@ namespace LanZouWindow
                     }
                 }
                 GUILayout.EndHorizontal();
-                set.downloadOverWrite= EditorGUILayout.Toggle(Contents.downloadOverWriteLabel, set.downloadOverWrite);
-                set.uploadOverWrite= EditorGUILayout.Toggle(Contents.uploadOverWriteLabel, set.uploadOverWrite);
-                set.NewFolderName= EditorGUILayout.TextField(Contents.NewFolderNameLabel, set.NewFolderName);
+                set.downloadOverWrite = EditorGUILayout.Toggle(Contents.downloadOverWriteLabel, set.downloadOverWrite);
+                set.uploadOverWrite = EditorGUILayout.Toggle(Contents.uploadOverWriteLabel, set.uploadOverWrite);
+                set.NewFolderName = EditorGUILayout.TextField(Contents.NewFolderNameLabel, set.NewFolderName);
                 GUILayout.Label(Contents.NewFolderDescLabel);
-                set.NewFolderDesc= EditorGUILayout.TextArea(set.NewFolderDesc,GUILayout.MinHeight(50));
+                set.NewFolderDesc = EditorGUILayout.TextArea(set.NewFolderDesc, GUILayout.MinHeight(50));
             }
             GUILayout.EndArea();
         }
@@ -1298,13 +1348,13 @@ namespace LanZouWindow
                         using (new EditorGUI.DisabledGroupScope(true))
                         {
                             GUILayout.Label(Contents.path);
-                            GUILayout.TextField(tool.current==null?"": tool.current.path, GUILayout.MinWidth(300));
+                            GUILayout.TextField(tool.current == null ? "" : tool.current.path, GUILayout.MinWidth(300));
                             if (tool.freshing)
                             {
                                 GUILayout.Label(Contents.GetFreshing());
                             }
                         }
-                        GUILayout.FlexibleSpace();     
+                        GUILayout.FlexibleSpace();
                         set.select = (SelectType)GUILayout.Toolbar((int)set.select, Contents.toolSelect, EditorStyles.toolbarButton);
                     }
                     GUILayout.EndHorizontal();
