@@ -35,15 +35,14 @@ namespace LanZouWindow
             public static GUIContent goup = new GUIContent(EditorGUIUtility.IconContent("d_scrollup")) { tooltip = "返回上一级" };
             public static GUIContent fresh = new GUIContent(EditorGUIUtility.IconContent("d_TreeEditor.Refresh")) { tooltip = "刷新" };
             public static GUIContent set = new GUIContent(EditorGUIUtility.IconContent("d_TerrainInspector.TerrainToolSettings")) { tooltip = "设置" };
-            public static GUIContent choosefolder = new GUIContent(EditorGUIUtility.IconContent("Folder Icon")) { tooltip = "选择保存路径" };
-            public static GUIContent choose = new GUIContent("Auto", "选择子文件夹");
+            public static GUIContent choosefolder = new GUIContent(EditorGUIUtility.IconContent("Folder Icon")) { tooltip = "选择路径" };
             public static GUIContent path = new GUIContent("Path:", "当前路径");
             public static GUIContent titleContent = new GUIContent("LanzouDisk");
             public static GUIContent files = new GUIContent("Files");
             public static GUIContent folders = new GUIContent("Folders");
             public static GUIContent upcloud = new GUIContent(EditorGUIUtility.IconContent("d_CloudConnect").image, "上传") { text = "↑" };
             public static GUIContent downcloud = new GUIContent(EditorGUIUtility.IconContent("d_CloudConnect").image) { text = "↓" };
-            public static GUIContent dragFiles = new GUIContent(EditorGUIUtility.IconContent("console.infoicon").image, "拖拽文件到此处") { text = "Drag Files Here" };
+            public static GUIContent dragFiles = new GUIContent(EditorGUIUtility.IconContent("console.infoicon").image, "拖拽文件/文件夹到此处") { text = "Drag Files Or Folders Here" };
             public static GUIContent list = new GUIContent(EditorGUIUtility.IconContent("d_align_vertically_center").image, "传输列表") { };
             public static GUIContent home = new GUIContent(EditorGUIUtility.IconContent("d_CanvasGroup Icon").image, "主页") { };
             public static GUIContent[] toolSelect = new GUIContent[] { Contents.home, set, Contents.upcloud, Contents.list, };
@@ -64,12 +63,35 @@ namespace LanZouWindow
             {
                 return EditorGUIUtility.IconContent($"d_WaitSpin{Math.Round(EditorApplication.timeSinceStartup % 11).ToString("00")}");
             }
+            public static GUIContent uploadlistlabel = new GUIContent();
+            public static GUIContent downloadlistlabel = new GUIContent();
 
+            public static GUIContent GetDownLoadListLabel(int count)
+            {
+                downloadlistlabel.text = $"Download List  {count}";
+                downloadlistlabel.tooltip = $"剩余下载任务 {count} 个";
+
+                return downloadlistlabel;
+            }
+            public static GUIContent GetUpLoadListLabel(int count)
+            {
+                uploadlistlabel.text = $"UpLoad List  {count}";
+                uploadlistlabel.tooltip = $"剩余上传任务 {count} 个";
+
+                return uploadlistlabel;
+            }
         }
         class ContentPage
         {
             class FileTree : TreeView
             {
+                public int count
+                {
+                    get
+                    {
+                        return files == null ? 0 : files.Count;
+                    } 
+                }
                 private List<DiskData.FileData> files;
                 private DiskTool tool { get { return _window.tool; } }
                 public FileTree(TreeViewState state) : base(state)
@@ -266,7 +288,13 @@ namespace LanZouWindow
             }
             class FolderTree : TreeView
             {
-
+                public int count
+                {
+                    get
+                    {
+                        return folders == null ? 0 : folders.Count;
+                    }
+                }
                 private List<DiskData.FolderData> folders;
                 private DiskTool tool { get { return _window.tool; } }
 
@@ -472,11 +500,10 @@ namespace LanZouWindow
                     GUILayout.BeginHorizontal();
                     {
                         GUILayout.Label(Contents.files);
-                        //GUILayout.FlexibleSpace();
-                        //if (GUILayout.Button(Contents.uploadfile, EditorStyles.toolbarButton))
-                        //{
-                        //    tool.UpLoadFile();
-                        //}
+                        GUILayout.Label(file.count.ToString());
+
+                        GUILayout.FlexibleSpace();
+
                     }
                     GUILayout.EndHorizontal();
 
@@ -492,6 +519,7 @@ namespace LanZouWindow
                     GUILayout.BeginHorizontal();
                     {
                         GUILayout.Label(Contents.folders);
+                        GUILayout.Label(folder.count.ToString());
                         GUILayout.FlexibleSpace();
                         if (GUILayout.Button(Contents.newfolder, EditorStyles.toolbarButton, GUILayout.Width(40)))
                         {
@@ -550,7 +578,7 @@ namespace LanZouWindow
                 freshing = false;
             }
 
-            public async void FreshCurrent()
+            public async Task FreshCurrent()
             {
                 await FreshFolder(current.id);
             }
@@ -735,10 +763,18 @@ namespace LanZouWindow
                 }
                 else
                 {
+                    var child = await lzy.GetFolderList(fid);
+                    if (child.folders!=null && child.folders.Count>0)
+                    {
+                        foreach (var item in child.folders)
+                        {
+                            await Delete(item.id, false);
+                        }
+                    }
                     var result = await lzy.DeleteFolder(fid);
                     if (result.code == LanZouCode.SUCCESS)
                     {
-                        await FreshFolder(current.id);
+                        await FreshCurrent();
                     }
                     else
                     {
@@ -1092,15 +1128,22 @@ namespace LanZouWindow
 
             public void OnListGUI()
             {
-                GUILayout.Label($"Download List Count ({count})");
-                foreach (var item in queue)
+                if (EditorGUILayout.DropdownButton(Contents.GetDownLoadListLabel(count), FocusType.Passive))
                 {
-                    GUILayout.BeginHorizontal();
+                    _window.set.showDownLoadList = !_window.set.showDownLoadList;
+                };
+              
+                if (_window.set.showDownLoadList)
+                {
+                    foreach (var item in queue)
                     {
-                        GUILayout.Space(20);
-                        GUILayout.Label(item.name, item == queue.Peek() ? (GUIStyle)"SelectionRect" : "label");
+                        GUILayout.BeginHorizontal();
+                        {
+                            GUILayout.Space(20);
+                            GUILayout.Label(item.name, item == queue.Peek() ? (GUIStyle)"SelectionRect" : EditorStyles.label, GUILayout.ExpandWidth(true));
+                        }
+                        GUILayout.EndHorizontal();
                     }
-                    GUILayout.EndHorizontal();
                 }
             }
         }
@@ -1191,17 +1234,23 @@ namespace LanZouWindow
 
             public void OnListGUI()
             {
-                GUILayout.Label($"Upload List Count ({count})");
-                foreach (var item in queue)
+                if (EditorGUILayout.DropdownButton(Contents.GetUpLoadListLabel(count), FocusType.Passive))
                 {
-                    GUILayout.BeginHorizontal();
+                    _window.set.showUpLoadList = !_window.set.showUpLoadList;
+                };
+                if (_window.set.showUpLoadList)
+                {
+                    foreach (var item in queue)
                     {
-                        GUILayout.Space(20);
-
-                        GUILayout.Label(item.path, item == queue.Peek() ? (GUIStyle)"SelectionRect" : "label");
+                        GUILayout.BeginHorizontal();
+                        {
+                            GUILayout.Space(20);
+                            GUILayout.Label(item.path, item == queue.Peek() ? (GUIStyle)"SelectionRect" : EditorStyles.label, GUILayout.ExpandWidth(true));
+                        }
+                        GUILayout.EndHorizontal();
                     }
-                    GUILayout.EndHorizontal();
                 }
+
             }
         }
 
@@ -1215,6 +1264,9 @@ namespace LanZouWindow
             public bool downloadOverWrite = true;
             public string NewFolderName = "NewFolder";
             public string NewFolderDesc;
+            public bool showDownLoadList = true;
+            public bool showUpLoadList = true;
+
         }
 
         private Setting set = new Setting();
@@ -1270,10 +1322,10 @@ namespace LanZouWindow
             if (set.select != SelectType.Home)
             {
                 var rect = new Rect(0, position.height - 200, position.width, 200);
+                GUI.Box(rect, "",EditorStyles.helpBox);
                 if (set.select == SelectType.List)
                 {
                     ShowList(rect);
-
                 }
                 else if (set.select == SelectType.Cound)
                 {
@@ -1289,14 +1341,14 @@ namespace LanZouWindow
         }
         private void OnInspectorUpdate()
         {
-            if (tool.freshing || ProgressBarView.current != null)
-            {
-                Repaint();
-            }
+            Repaint();
+        }
+        private void OnFocus()
+        {
+            Repaint();
         }
         private void SettingGUI(Rect rect)
         {
-            GUI.Box(rect, "");
             GUILayout.BeginArea(rect.Zoom(AnchorType.MiddleCenter, -20));
             {
                 GUILayout.BeginHorizontal();
@@ -1317,25 +1369,29 @@ namespace LanZouWindow
             GUILayout.EndArea();
         }
 
+        private Vector2 listscroll;
         private void ShowList(Rect rect)
         {
-            GUI.Box(rect, "");
-            GUILayout.BeginArea(rect.Zoom(AnchorType.MiddleCenter, -20));
+            GUILayout.BeginArea(rect.Zoom(AnchorType.MiddleCenter, -10));
             {
-                upLoad.OnListGUI();
-                downLoad.OnListGUI();
+                listscroll = GUILayout.BeginScrollView(listscroll);
+                {
+                    downLoad.OnListGUI();
+                    GUILayout.Space(10);
+                    upLoad.OnListGUI();
+                }
+                GUILayout.EndScrollView();
             }
             GUILayout.EndArea();
         }
 
         private void UpLoad(Rect rect)
         {
-            GUIStyle dragFileStyle = new GUIStyle("helpbox")
+            GUIStyle dragFileStyle = new GUIStyle(EditorStyles.helpBox)
             {
                 fontSize = 30,
                 alignment = TextAnchor.MiddleCenter
             };
-            GUI.Box(rect, "");
             GUI.Label(rect.Zoom(AnchorType.MiddleCenter, -10), Contents.dragFiles, dragFileStyle);
             var info = DragAndDropTool.Drag(Event.current, rect);
             if (info.enterArera && info.compelete && Event.current.type == EventType.Used)
