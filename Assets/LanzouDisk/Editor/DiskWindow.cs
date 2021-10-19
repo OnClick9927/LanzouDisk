@@ -1453,11 +1453,11 @@ namespace LanZouWindow
                         }
                         if (GUILayout.Button(Contents.web, EditorStyles.toolbarButton, GUILayout.Width(30)))
                         {
-                            Application.OpenURL("https://up.woozooo.com/");
+                            Application.OpenURL(LanzouCookie.webUrl);
                         }
                         if (GUILayout.Button(Contents.help, EditorStyles.toolbarButton, GUILayout.Width(30)))
                         {
-                            Application.OpenURL("https://bbs.zsxwz.com/thread-2505.html");
+                            Application.OpenURL(LanzouCookie.helpUrl);
                         }
                         GUILayout.Space(10);
                         using (new EditorGUI.DisabledGroupScope(true))

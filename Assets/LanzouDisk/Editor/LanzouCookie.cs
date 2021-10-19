@@ -4,9 +4,12 @@ using UnityEngine;
 
 namespace LanZouWindow
 {
-    [CreateAssetMenu]
+    [CreateAssetMenu][HelpURL(LanzouCookie.helpUrl)]
     public class LanzouCookie : ScriptableObject
     {
+        public const string helpUrl = "https://bbs.zsxwz.com/thread-2505.html";
+        public const string webUrl = "https://up.woozooo.com/";
+
         public string ylogin = "";
         [TextArea(3,8)]
         public string phpdisk_info = "";
