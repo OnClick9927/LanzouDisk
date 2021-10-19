@@ -21,15 +21,9 @@ namespace LanZouWindow
         LowerCenter = 7,
         LowerRight = 8
     }
-    public enum SplitType
-    {
-        Vertical, Horizontal
-    }
 
     public static class RectExtension
     {
-
-
         public static Rect Zoom(this Rect rect, AnchorType type, float pixel)
         {
             return Zoom(rect,type,new Vector2(pixel, pixel));
@@ -76,10 +70,6 @@ namespace LanZouWindow
             return rect;
         }
 
-
-
-
-
         public static Rect CutBottom(this Rect r, float pixels)
         {
             r.yMax -= pixels;
@@ -115,31 +105,6 @@ namespace LanZouWindow
             return r;
         }
 
-        public static Rect[] Split(this Rect r, SplitType type, float offset, float padding = 0, bool justMid = true)
-        {
-            switch (type)
-            {
-                case SplitType.Vertical:
-                    return r.VerticalSplit(offset, padding, justMid);
-                case SplitType.Horizontal:
-                    return r.HorizontalSplit(offset, padding, justMid);
-                default:
-                    return default(Rect[]);
-            }
-        }
-        public static Rect SplitRect(this Rect r, SplitType type, float offset, float padding = 0)
-        {
-            switch (type)
-            {
-                case SplitType.Vertical:
-                    return r.VerticalSplitRect(offset, padding);
-                case SplitType.Horizontal:
-                    return r.HorizontalSplitRect(offset, padding);
-                default:
-                    return default(Rect);
-            }
-        }
-
         public static Rect[] VerticalSplit(this Rect r, float width, float padding = 0, bool justMid = true)
         {
             if (justMid)
@@ -164,25 +129,6 @@ namespace LanZouWindow
                 r.CutTop(height).Cut(padding).CutTop(-Mathf.FloorToInt(padding/2f))
             };
         }
-        public static Rect HorizontalSplitRect(this Rect r, float height, float padding = 0)
-        {
-            Rect rect = r.CutBottom((int)(r.height - height)).Cut(padding).CutBottom(-Mathf.CeilToInt(padding / 2f));
-            rect.y += rect.height;
-            rect.height = padding;
-            return rect;
-        }
-        public static Rect VerticalSplitRect(this Rect r, float width, float padding = 0)
-        {
-            Rect rect = r.CutRight((int)(r.width - width)).Cut(padding).CutRight(-Mathf.CeilToInt(padding / 2f));
-            rect.x += rect.width;
-            rect.width = padding;
-            return rect;
-        }
-
-
-
-
-
 
     }
 }
