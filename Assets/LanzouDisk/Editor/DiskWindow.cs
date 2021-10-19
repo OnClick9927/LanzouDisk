@@ -87,17 +87,18 @@ namespace LanZouWindow
                         new MultiColumnHeaderState.Column()
                         {
                             headerContent=Contents.size,
-                            width=50,
+                            width=100,
                             autoResize=false,
-                            maxWidth=50,
+                            maxWidth=100,
                         },
 
                            new MultiColumnHeaderState.Column()
                         {
+                              
                             headerContent=Contents.down,
-                            width=40,
-                            maxWidth=40,
-                            minWidth=40,
+                            width=50,
+                            maxWidth=50,
+                            minWidth=50,
                             autoResize=false
                         },
                         new MultiColumnHeaderState.Column()
