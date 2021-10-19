@@ -1286,12 +1286,14 @@ namespace LanZouWindow
             }
             upLoad.Update();
             downLoad.Update();
+        }
+        private void OnInspectorUpdate()
+        {
             if (tool.freshing || ProgressBarView.current != null)
             {
                 Repaint();
             }
         }
-
         private void SettingGUI(Rect rect)
         {
             GUI.Box(rect, "");
