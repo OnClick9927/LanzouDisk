@@ -7,9 +7,9 @@ namespace LanZouWindow
     {
         public static LanzouCookie cookie;
         private const string key0 = "1321321321346DiskWindow5987941465554987879";
+        private string cookiepath = "";
         private DiskSetting set;
         private DiskTool tool;
-        private string cookiepath = "";
         private FilePage filepage;
         private ProgressBarView downLoad;
         private ProgressBarView upLoad;
@@ -40,8 +40,8 @@ namespace LanZouWindow
             {
                 local.height -= 200;
             }
-            var rs = local.HorizontalSplit(20);
-            var rs1 = rs[1].HorizontalSplit(rs[1].height - 20);
+            var rs = local.HorizontalSplit(22);
+            var rs1 = rs[1].HorizontalSplit(rs[1].height - 20,2,false);
             ToolBar(rs[0]);
             filepage.OnGUI(rs1[0]);
             if (ProgressBarView.current != null)
@@ -154,59 +154,60 @@ namespace LanZouWindow
                 {
                     GUILayout.BeginHorizontal();
                     {
-                        using (new EditorGUI.DisabledGroupScope(!tool.CanGoBack()))
-                        {
+                        //using (new EditorGUI.DisabledGroupScope(!tool.CanGoBack()))
+                        //{
 
-                            if (GUILayout.Button(Contents.goback, EditorStyles.toolbarButton,GUILayout.Width(30)))
-                            {
-                                tool.GoBack();
-                            }
-                        }
-                        using (new EditorGUI.DisabledGroupScope(!tool.CanGoFront()))
-                        {
+                        //    if (GUILayout.Button(Contents.goback, EditorStyles.toolbarButton,GUILayout.Width(30)))
+                        //    {
+                        //        tool.GoBack();
+                        //    }
+                        //}
+                        //using (new EditorGUI.DisabledGroupScope(!tool.CanGoFront()))
+                        //{
 
-                            if (GUILayout.Button(Contents.gofront, EditorStyles.toolbarButton, GUILayout.Width(30)))
-                            {
-                                tool.GoFront();
-                            }
-                        }
-                        using (new EditorGUI.DisabledGroupScope(!tool.CanGoUp()))
-                        {
+                        //    if (GUILayout.Button(Contents.gofront, EditorStyles.toolbarButton, GUILayout.Width(30)))
+                        //    {
+                        //        tool.GoFront();
+                        //    }
+                        //}
+                        //using (new EditorGUI.DisabledGroupScope(!tool.CanGoUp()))
+                        //{
 
-                            if (GUILayout.Button(Contents.goup, EditorStyles.toolbarButton, GUILayout.Width(30)))
-                            {
-                                tool.GoUp();
-                            }
-                        }
-                        if (GUILayout.Button(Contents.fresh, EditorStyles.toolbarButton, GUILayout.Width(30)))
+                        //    if (GUILayout.Button(Contents.goup, EditorStyles.toolbarButton, GUILayout.Width(30)))
+                        //    {
+                        //        tool.GoUp();
+                        //    }
+                        //}
+                        //if (GUILayout.Button(Contents.fresh, EditorStyles.toolbarButton, GUILayout.Width(30)))
+                        //{
+                        //    tool.FreshCurrent();
+                        //}
+                        set.select = (ToolType)GUILayout.Toolbar((int)set.select, Contents.toolSelect, EditorStyles.toolbarButton, GUILayout.Width(200));
+                        GUILayout.FlexibleSpace();
+
+                        if (GUILayout.Button(Contents.help, EditorStyles.toolbarButton, GUILayout.Width(30)))
                         {
-                            tool.FreshCurrent();
+                            Application.OpenURL(LanzouCookie.helpUrl);
                         }
                         if (GUILayout.Button(Contents.web, EditorStyles.toolbarButton, GUILayout.Width(30)))
                         {
                             Application.OpenURL(LanzouCookie.webUrl);
                         }
-                        if (GUILayout.Button(Contents.help, EditorStyles.toolbarButton, GUILayout.Width(30)))
-                        {
-                            Application.OpenURL(LanzouCookie.helpUrl);
-                        }
                         GUILayout.Space(10);
-                        using (new EditorGUI.DisabledGroupScope(true))
-                        {
-                            GUILayout.Label(Contents.path, GUILayout.Width(30));
+                        //using (new EditorGUI.DisabledGroupScope(true))
+                        //{
+                        //    GUILayout.Label(Contents.path, GUILayout.Width(30));
 
-                            GUILayout.TextField(tool.GetCurrentPath(), GUILayout.ExpandWidth(true));
-                            if (tool.freshing)
-                            {
-                                GUILayout.Label(Contents.GetFreshing(),GUILayout.Width(30));
-                            }
-                            else
-                            {
-                                GUILayout.Space(30);
-                            }
-                        }
-                        //GUILayout.FlexibleSpace();
-                        set.select = (ToolType)GUILayout.Toolbar((int)set.select, Contents.toolSelect, EditorStyles.toolbarButton, GUILayout.Width(200));
+                        //    GUILayout.TextField(tool.GetCurrentPath(), GUILayout.ExpandWidth(true));
+                        //    if (tool.freshing)
+                        //    {
+                        //        GUILayout.Label(Contents.GetFreshing(),GUILayout.Width(30));
+                        //    }
+                        //    else
+                        //    {
+                        //        GUILayout.Space(30);
+                        //    }
+                        //}
                     }
                     GUILayout.EndHorizontal();
 

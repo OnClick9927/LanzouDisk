@@ -81,26 +81,74 @@ namespace LanZouWindow
             }
             public override void OnGUI(Rect rect)
             {
-                var rs = rect.HorizontalSplit(20);
-                GUILayout.BeginArea(rs[0], EditorStyles.toolbar);
+                var rs = rect.HorizontalSplit(25);
+                using (new EditorGUI.DisabledGroupScope(tool.freshing))
                 {
-                    GUILayout.BeginHorizontal();
+                    GUILayout.BeginArea(rs[0], EditorStyles.toolbar);
                     {
-                        GUILayout.Label(Contents.folders);
-                        GUILayout.Label(folderCount.ToString());
-                        GUILayout.Label(Contents.files);
-                        GUILayout.Label(fileCount.ToString());
-
-                        GUILayout.FlexibleSpace();
-                        if (GUILayout.Button(Contents.newfolder, EditorStyles.toolbarButton, GUILayout.Width(40)))
+                        GUILayout.BeginHorizontal();
                         {
-                            tool.NewFolder();
-                        }
-                    }
-                    GUILayout.EndHorizontal();
+                            using (new EditorGUI.DisabledGroupScope(!tool.CanGoBack()))
+                            {
 
+                                if (GUILayout.Button(Contents.goback, EditorStyles.toolbarButton, GUILayout.Width(30)))
+                                {
+                                    tool.GoBack();
+                                }
+                            }
+                            using (new EditorGUI.DisabledGroupScope(!tool.CanGoFront()))
+                            {
+
+                                if (GUILayout.Button(Contents.gofront, EditorStyles.toolbarButton, GUILayout.Width(30)))
+                                {
+                                    tool.GoFront();
+                                }
+                            }
+                            using (new EditorGUI.DisabledGroupScope(!tool.CanGoUp()))
+                            {
+
+                                if (GUILayout.Button(Contents.goup, EditorStyles.toolbarButton, GUILayout.Width(30)))
+                                {
+                                    tool.GoUp();
+                                }
+                            }
+                            if (GUILayout.Button(Contents.fresh, EditorStyles.toolbarButton, GUILayout.Width(30)))
+                            {
+                                tool.FreshCurrent();
+                            }
+                            GUILayout.Space(10);
+                            using (new EditorGUI.DisabledGroupScope(true))
+                            {
+                                GUILayout.Label(Contents.path, GUILayout.Width(30));
+
+                                GUILayout.TextField(tool.GetCurrentPath(), GUILayout.ExpandWidth(true));
+                                if (tool.freshing)
+                                {
+                                    GUILayout.Label(Contents.GetFreshing(), GUILayout.Width(30));
+                                }
+                                else
+                                {
+                                    GUILayout.Space(30);
+                                }
+                            }
+
+                            //GUILayout.Label(Contents.folders);
+                            //GUILayout.Label(folderCount.ToString());
+                            //GUILayout.Label(Contents.files);
+                            //GUILayout.Label(fileCount.ToString());
+
+                            //GUILayout.FlexibleSpace();
+                            if (GUILayout.Button(Contents.newfolder, EditorStyles.toolbarButton, GUILayout.Width(40)))
+                            {
+                                tool.NewFolder();
+                            }
+                        }
+                        GUILayout.EndHorizontal();
+
+                    }
+                    GUILayout.EndArea();
                 }
-                GUILayout.EndArea();
+      
                 base.OnGUI(rs[1]);
             }
 
