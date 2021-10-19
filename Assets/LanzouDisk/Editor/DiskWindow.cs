@@ -747,7 +747,7 @@ namespace LanZouWindow
                 }
             }
 
-            public async Task Delete(long fid, bool is_file)
+            public async Task Delete(long fid, bool is_file,bool rootFolder=true)
             {
                 if (is_file)
                 {
@@ -768,13 +768,16 @@ namespace LanZouWindow
                     {
                         foreach (var item in child.folders)
                         {
-                            await Delete(item.id, false);
+                            await Delete(item.id, false,false);
                         }
                     }
                     var result = await lzy.DeleteFolder(fid);
                     if (result.code == LanZouCode.SUCCESS)
                     {
-                        await FreshCurrent();
+                        if (rootFolder)
+                        {
+                            await FreshCurrent();
+                        }
                     }
                     else
                     {
@@ -955,11 +958,7 @@ namespace LanZouWindow
                     }
                 }
                 FolderData _f = root.allfolders.Find(_data => { return _data.id == id; });
-                if (_f == null)
-                {
-                    Debug.LogError("not find dolder " + id);
-                    return;
-                }
+                if (_f == null) return;
                 if (folders != null)
                 {
                     _f.folders = folders.ConvertAll(data =>
@@ -979,12 +978,24 @@ namespace LanZouWindow
                         return _data;
                     });
                 }
-                root.allfiles.RemoveAll((data) => { return data.pid == _f.id; });
-                root.allfolders.RemoveAll((data) => { return data.pid == _f.id; });
+                LoopRemoveUseLessData(_f.id);
                 root.allfiles.AddRange(_f.files);
                 root.allfolders.AddRange(_f.folders);
             }
-
+            private void LoopRemoveUseLessData(long id)
+            {
+                var files = root.allfiles.FindAll((data) => { return data.pid == id; });
+                var folders = root.allfolders.FindAll((data) => { return data.pid == id; });
+                foreach (var item in folders)
+                {
+                    LoopRemoveUseLessData(item.id);
+                    root.allfolders.Remove(item);
+                }
+                foreach (var item in files)
+                {
+                    root.allfiles.Remove(item);
+                }
+            }
         }
 
         public class ProgressBarView : IProgress<ProgressInfo>
