@@ -194,6 +194,15 @@ namespace LanZouWindow
                 }
                 tool.DownLoad(datas);
             }
+
+            private void Move(object userData)
+            {
+                IList<int> list = (IList<int>)userData;
+                if (list == null || list.Count <= 0) return;
+                tool.MoveFile(this.treeViewRect.Zoom(AnchorType.MiddleCenter, -this.treeViewRect.size), list);
+
+            }
+
             private void Description(object userData)
             {
                 int id = (int)userData;
@@ -254,6 +263,8 @@ namespace LanZouWindow
                 menu.AddItem(new GUIContent("Share"), false, Share, id);
                 menu.AddItem(new GUIContent("Delete"), false, Delete, this.GetSelection());
                 menu.AddItem(new GUIContent("DownLoad"), false, DownLoad, this.GetSelection());
+                menu.AddItem(new GUIContent("Move"), false, Move, this.GetSelection());
+
                 if (data.has_des)
                 {
                     menu.AddItem(new GUIContent("Description"), false, Description, id);

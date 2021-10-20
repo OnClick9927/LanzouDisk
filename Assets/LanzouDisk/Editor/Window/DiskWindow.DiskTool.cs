@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
 namespace LanZouWindow
@@ -13,6 +14,102 @@ namespace LanZouWindow
     {
         public class DiskTool
         {
+            public class MoveFilePop : PopupWindowContent
+            {
+                public static void Show(Rect rect,DiskData data,IList<int> list,DiskTool tool)
+                {
+                    MoveFilePop pop= new MoveFilePop();
+                    pop.tree = new Tree(data, list,tool);
+                    PopupWindow.Show(rect,pop);
+                }
+                private Tree tree;
+                private class Tree : TreeView
+                {
+                    private DiskData data;
+                    private readonly IList<int> list;
+                    private readonly DiskTool tool;
+
+                    public Tree(DiskData data, IList<int> list, DiskTool tool) : base(new TreeViewState())
+                    {
+                        this.data = data;
+                        this.list = list;
+                        this.tool = tool;
+                        Reload();
+                        Fresh();
+                    }
+                    private async void Fresh()
+                    {
+                        await tool.FreshFolderList();
+                        Reload();
+                    }
+                    private async void Move(long fid)
+                    {
+                        EditorWindow.focusedWindow.Close();
+                        foreach (var item in list)
+                        {
+                            await tool.DoMoveFile(item, fid, data.IsFile(item));
+                        }
+                    }
+
+                    protected override TreeViewItem BuildRoot()
+                    {
+                        return new TreeViewItem { id = -2, depth = -1, displayName = "Root" };
+                    }
+                    protected override IList<TreeViewItem> BuildRows(TreeViewItem root)
+                    {
+                        List<TreeViewItem> rows = new List<TreeViewItem>();
+                        TreeViewItem view = new TreeViewItem()
+                        {
+                            id = -1,
+                            depth = 1,
+                            displayName = data.path
+                        };
+                        root.AddChild(view);
+                        rows.Add(view);
+                        LoopBuild(data.id, view, rows);
+                        return rows;
+                    }
+                    private void LoopBuild(long id,TreeViewItem parrent, List<TreeViewItem> rows)
+                    {
+                        var datas = data.GetSubFolders(id);
+                        foreach (var item in datas)
+                        {
+                            TreeViewItem view = new TreeViewItem()
+                            {
+                                id = (int)item.id,
+                                depth = parrent.depth + 1,
+                                displayName = item.name
+                            };
+                            parrent.AddChild(view);
+                            rows.Add(view);
+                            LoopBuild(view.id, view, rows);
+                        }
+                    }
+
+                    protected override void RowGUI(RowGUIArgs args)
+                    {
+                        Rect rect = args.rowRect;
+                        rect.x += args.item.depth * 10;
+                        rect.width -= args.item.depth * 10;
+                        GUI.Label(rect,Contents.GetFolder(args.item.displayName));
+                    }
+                    protected override void DoubleClickedItem(int id)
+                    {
+                        Move(id);
+                    }
+                    public override void OnGUI(Rect rect)
+                    {
+                        base.OnGUI(rect.Zoom(AnchorType.MiddleCenter,-2));
+                    }
+                }
+                public override void OnGUI(Rect rect)
+                {
+                    GUI.Box(rect, "", EditorStyles.helpBox);
+                    var rs = rect.HorizontalSplit(20);
+                    GUI.Label(rs[0], Contents.clickMove, EditorStyles.toolbarButton);
+                    tree.OnGUI(rs[1]);
+                }
+            }
             public class Data
             {
                 public long pid;
@@ -47,6 +144,10 @@ namespace LanZouWindow
                 public bool IsRootFolder(FolderData data)
                 {
                     return data == this;
+                }
+                public bool IsFile(long id)
+                {
+                    return FindFileById(id)!=null;
                 }
                 public FolderData FindFolderById(long id)
                 {
@@ -187,6 +288,20 @@ namespace LanZouWindow
                 }
                 freshing = false;
             }
+            public async Task FreshFolderList(long id=-1)
+            {
+                freshing = true;
+                var ds = await lzy.GetFolderList(id);
+                if (ds.folders!=null)
+                {
+                    data.FreshFolder(id, ds.folders, null);
+                    foreach (var item in ds.folders)
+                    {
+                        await FreshFolderList(item.id);
+                    }
+                }
+                freshing = false;
+            }
 
             public async Task FreshCurrent()
             {
@@ -197,7 +312,35 @@ namespace LanZouWindow
                EditorWindow.focusedWindow.ShowNotification(content);
             }
  
+            public async Task DoMoveFile(long file, long folder,bool isfile)
+            {
+                if (isfile)
+                {
+                    var result = await lzy.MoveFile(file, folder);
+                    if (result.code == LanZouCode.SUCCESS)
+                    {
+                        data.DeleteFile(file);
+                       await FreshFolder(folder);
+                        await FreshCurrent();
+                    }
+                }
+                else
+                {
+                    var result = await lzy.MoveFolder(file, folder);
+                    if (result.code == LanZouCode.SUCCESS)
+                    {
+                        data.DeleteFolder(file);
+                        await FreshFolder(folder);
+                        await FreshCurrent();
 
+                    }
+                }
+            }
+            public void MoveFile(Rect rect, IList<int> list)
+            {
+                MoveFilePop.Show(rect, data,list,this);
+               
+            }
             public async void Share(long fid, bool is_file = true)
             {
                 if (is_file)

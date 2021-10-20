@@ -51,6 +51,7 @@ namespace LanZouWindow
             }
             public static GUIContent uploadlistlabel = new GUIContent();
             public static GUIContent downloadlistlabel = new GUIContent();
+            public static GUIContent clickMove = new GUIContent("Double Click To Choose Folder", "双击选择文件夹");
 
             public static GUIContent GetDownLoadListLabel(int count)
             {
