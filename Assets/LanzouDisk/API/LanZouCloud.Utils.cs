@@ -1,4 +1,5 @@
-﻿using System;
+using LitJson;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -124,31 +125,33 @@ namespace LanZouCloudAPI
             return Regex.Replace(name, "[$%^!*<>)(+=`'\"/:;,?]", "");
         }
 
+        private static readonly string _network_error_msg = "Network error, please retry later";
+        private static readonly string _not_login_msg = "You are not login, please login and retry";
+        private static readonly string _success_msg = "Success";
+
         /// <summary>
-        /// 从返回结果中获得 返回码
+        /// 从返回JSON中获得 结果
         /// </summary>
         /// <param name="text"></param>
         /// <returns></returns>
-        private LanZouCode _get_rescode(string text)
+        private Result _get_result(string text)
         {
             if (string.IsNullOrEmpty(text))
-                return LanZouCode.NETWORK_ERROR;
+            {
+                return new Result(LanZouCode.NETWORK_ERROR, _network_error_msg);
+            }
             if (text.Contains("info\":\"login not"))
-                return LanZouCode.NOT_LOGIN;
+            {
+                return new Result(LanZouCode.NOT_LOGIN, _not_login_msg);
+            }
             if (!text.Contains("zt\":1") && !text.Contains("zt\":2"))
-                return LanZouCode.FAILED;
-            return LanZouCode.SUCCESS;
-        }
-
-        private string _rescode_msg(LanZouCode code)
-        {
-            if (code == LanZouCode.NETWORK_ERROR)
-                return "Network error, please retry later.";
-            else if (code == LanZouCode.NOT_LOGIN)
-                return "You are not login, please login and retry.";
-            else if (code == LanZouCode.FAILED)
-                return "Unknown reason, but just Failed.";
-            return code.ToString();
+            {
+                string _err;
+                if (!text.Contains("info\":\"")) _err = text;
+                else _err = JsonMapper.ToObject(text)["info"].ToString();
+                return new Result(LanZouCode.FAILED, _err);
+            }
+            return new Result(LanZouCode.SUCCESS, _success_msg);
         }
 
         /// <summary>
