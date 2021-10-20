@@ -72,7 +72,8 @@ namespace LanZouWindow
             {
                 if (current != null)
                 {
-                    ReadFiles(current.files, current.folders);
+                    var id = current.id;
+                    ReadFiles(tool.GetSubFliles(id), tool.GetSubFolders(id));
                 }
                 else
                 {

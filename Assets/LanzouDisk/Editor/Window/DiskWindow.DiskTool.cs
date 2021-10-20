@@ -20,6 +20,7 @@ namespace LanZouWindow
                 public string name;
                 public bool has_pwd;
                 public bool has_des;
+                public string path;
             }
             public class FileData : Data
             {
@@ -27,112 +28,116 @@ namespace LanZouWindow
                 public string size;
                 public string type;
                 public int downs;
-                public static implicit operator FileData(CloudFile c)
-                {
-                    return new FileData()
-                    {
-                        id = c.id,
-                        name = c.name,
-                        has_pwd = c.hasPassword,
-                        time = c.time,
-                        size = c.size,
-                        type = c.type,
-                        has_des = c.hasPassword,
-                        downs = c.downloads,
-                    };
-                }
             }
             public class FolderData : Data
             {
-                public string path;
-                public string desc;
-                public List<FolderData> folders = new List<FolderData>();
-                public List<FileData> files = new List<FileData>();
-                public static implicit operator FolderData(CloudFolder c)
-                {
-                    return new FolderData()
-                    {
-                        id = c.id,
-                        name = c.name,
-                        has_pwd = c.hasPassword,
-                        has_des = !string.IsNullOrEmpty(c.description),
-                        desc = c.description
-                    };
-                }
+                public string desc;               
             }
-            public class RootFolderData : FolderData
+            public class DiskData: FolderData
             {
-                public List<FolderData> allfolders = new List<FolderData>();
-                public List<FileData> allfiles = new List<FileData>();
-                public void Clear()
+                private List<FolderData> allfolders = new List<FolderData>();
+                private List<FileData> allfiles = new List<FileData>();
+                public DiskData()
                 {
-                    allfolders.Clear();
-                    allfiles.Clear();
+                    id = -1;
+                    path = "Root";
+                    allfolders.Add(this);
                 }
-            }
-            public class DiskData
-            {
-                private RootFolderData root;
+
                 public bool IsRootFolder(FolderData data)
                 {
-                    return data == root;
+                    return data == this;
                 }
                 public FolderData FindFolderById(long id)
                 {
-                    if (id == -1) return root;
-                    return root.allfolders.Find(_data => { return _data.id == id; });
+                    if (id == -1) return this;
+                    return allfolders.Find(_data => { return _data.id == id; });
+                }
+                public FileData FindFileById(long id)
+                {
+                    return allfiles.Find(_data => { return _data.id == id; });
+                }
+
+               
+                public List<FolderData> GetSubFolders(long folderid)
+                {
+                    return allfolders.FindAll(_data => { return _data.pid == folderid; });
+                }
+                public List<FileData> GetSubFliles(long folderid)
+                {
+                    return allfiles.FindAll(_data => { return _data.pid == folderid; });
                 }
                 public void FreshFolder(long id, List<CloudFolder> folders, List<CloudFile> fs)
                 {
-                    if (id == -1)
-                    {
-                        if (root == null)
-                        {
-                            root = new RootFolderData() { id = -1, path = "Root" };
-                            root.Clear();
-                            root.allfolders.Add(root);
-                        }
-                    }
-                    FolderData _f = root.allfolders.Find(_data => { return _data.id == id; });
-                    if (_f == null) return;
+                    FolderData parent = FindFolderById(id);
+                    if (parent == null) return;
                     if (folders != null)
                     {
-                        _f.folders = folders.ConvertAll(data =>
+                        foreach (CloudFolder cloud in folders)
                         {
-                            FolderData _data = data;
-                            _data.pid = _f.id;
-                            _data.path = _f.path + "/" + _data.name;
-                            return _data;
-                        });
+                            long cid = cloud.id;
+                            FolderData fdata = FindFolderById(cid);
+                            if (fdata==null)
+                            {
+                                fdata = new FolderData();
+                                allfolders.Add(fdata);
+                            }
+
+                            fdata.pid = parent.id;
+                            fdata.id = cloud.id;
+                            fdata.name = cloud.name;
+                            fdata.has_pwd = cloud.hasPassword;
+                            fdata.has_des = !string.IsNullOrEmpty(cloud.description);
+                            fdata.desc = cloud.description;
+                            fdata.path = parent.path + "/" + parent.name;
+                        }
                     }
                     if (fs != null)
                     {
-                        _f.files = fs.ConvertAll(data =>
+                        foreach (CloudFile cloud in fs)
                         {
-                            FileData _data = data;
-                            _data.pid = data.id;
-                            return _data;
-                        });
+                            long cid = cloud.id;
+                            FileData fdata = FindFileById(cid);
+                            if (fdata==null)
+                            {
+                                fdata = new FileData();
+                                allfiles.Add(fdata);
+                            }
+                            fdata.pid = parent.id;
+                            fdata.id = cloud.id;
+                            fdata.name = cloud.name;
+                            fdata.has_pwd = cloud.hasPassword;
+                            fdata.has_des = cloud.hasPassword;
+                            fdata.time = cloud.time;
+                            fdata.size = cloud.size;
+                            fdata.type = cloud.type;
+                            fdata.downs = cloud.downloads;
+                            fdata.path = parent.path + "/" + parent.name;
+                        }
                     }
-                    LoopRemoveUseLessData(_f.id);
-                    root.allfiles.AddRange(_f.files);
-                    root.allfolders.AddRange(_f.folders);
                 }
-                private void LoopRemoveUseLessData(long id)
+
+                public void DeleteFile(long fid)
                 {
-                    var files = root.allfiles.FindAll((data) => { return data.pid == id; });
-                    var folders = root.allfolders.FindAll((data) => { return data.pid == id; });
-                    foreach (var item in folders)
-                    {
-                        LoopRemoveUseLessData(item.id);
-                        root.allfolders.Remove(item);
-                    }
-                    foreach (var item in files)
-                    {
-                        root.allfiles.Remove(item);
-                    }
+                    allfiles.RemoveAll(data => { return data.id == fid; });
+                }
+                public void DeleteFolder(long fid)
+                {
+                    allfolders.RemoveAll(data => { return data.id == fid; });
                 }
             }
+
+
+            public List<FolderData> GetSubFolders(long folderid)
+            {
+               return data.GetSubFolders(folderid);
+
+            }
+            public List<FileData> GetSubFliles(long folderid)
+            {
+                return data.GetSubFliles(folderid);
+            }
+
             public DiskTool(DiskSetting set, ProgressBarView downLoad, ProgressBarView upLoad)
             {
                 this.downLoad = downLoad;
@@ -228,6 +233,7 @@ namespace LanZouWindow
                     var result = await lzy.DeleteFile(fid);
                     if (result.code == LanZouCode.SUCCESS)
                     {
+                        this.data.DeleteFile(fid);
                         await FreshFolder(current.id);
                     }
                     else
@@ -248,6 +254,7 @@ namespace LanZouWindow
                     var result = await lzy.DeleteFolder(fid);
                     if (result.code == LanZouCode.SUCCESS)
                     {
+                        this.data.DeleteFolder(fid);
                         if (rootFolder)
                         {
                             await FreshCurrent();
