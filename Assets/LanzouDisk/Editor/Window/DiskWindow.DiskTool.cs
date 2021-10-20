@@ -178,6 +178,7 @@ namespace LanZouWindow
                 }
                 public void FreshFolder(long id, List<CloudFolder> folders, List<CloudFile> fs)
                 {
+                    LoopRemoveSubFoldersAndFiles(id);
                     FolderData parent = FindFolderById(id);
                     if (parent == null) return;
                     if (folders != null)
@@ -225,7 +226,19 @@ namespace LanZouWindow
                         }
                     }
                 }
-
+                private void LoopRemoveSubFoldersAndFiles(long id)
+                {
+                    allfiles.RemoveAll(_data => { return _data.pid == id; });
+                    var folders = GetSubFolders(id);
+                    if (folders != null)
+                    {
+                        foreach (var item in folders)
+                        {
+                            allfolders.Remove(item);
+                            LoopRemoveSubFoldersAndFiles(item.id);
+                        }
+                    }
+                }
                 public void DeleteFile(long fid)
                 {
                     allfiles.RemoveAll(data => { return data.id == fid; });
