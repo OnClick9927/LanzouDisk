@@ -82,6 +82,8 @@ namespace LanZouWindow
             }
             public override void OnGUI(Rect rect)
             {
+                mousePosition = Event.current.mousePosition;
+
                 var rs = rect.HorizontalSplit(25);
                 using (new EditorGUI.DisabledGroupScope(tool.freshing))
                 {
@@ -194,12 +196,12 @@ namespace LanZouWindow
                 }
                 tool.DownLoad(datas);
             }
-
+            private Vector2 mousePosition;
             private void Move(object userData)
             {
                 IList<int> list = (IList<int>)userData;
                 if (list == null || list.Count <= 0) return;
-                tool.MoveFile(this.treeViewRect.Zoom(AnchorType.MiddleCenter, -this.treeViewRect.size), list);
+                tool.MoveFile(new Rect(mousePosition,Vector2.zero), list);
 
             }
 

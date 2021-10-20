@@ -50,7 +50,10 @@ namespace LanZouWindow
                             await tool.DoMoveFile(item, fid, data.IsFile(item));
                         }
                     }
-
+                    protected override bool CanMultiSelect(TreeViewItem item)
+                    {
+                        return false;
+                    }
                     protected override TreeViewItem BuildRoot()
                     {
                         return new TreeViewItem { id = -2, depth = -1, displayName = "Root" };
@@ -101,6 +104,7 @@ namespace LanZouWindow
                     {
                         base.OnGUI(rect.Zoom(AnchorType.MiddleCenter,-2));
                     }
+                
                 }
                 public override void OnGUI(Rect rect)
                 {
@@ -108,6 +112,10 @@ namespace LanZouWindow
                     var rs = rect.HorizontalSplit(20);
                     GUI.Label(rs[0], Contents.clickMove, EditorStyles.toolbarButton);
                     tree.OnGUI(rs[1]);
+                }
+                public override Vector2 GetWindowSize()
+                {
+                    return new Vector2(250, 400);
                 }
             }
             public class Data
