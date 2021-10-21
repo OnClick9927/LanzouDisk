@@ -14,8 +14,13 @@
 上传/下载时断点续传、清理"幽灵"文件夹、移动文件夹、获取下载直链
 
 - 如果有任何问题或建议, 欢迎提 issue, 维护不易，求一个 star (\*/ω＼*)
-# [API](https://github.com/psygames/LanZouCloud-API-Sharp)
 
+# 如何使用
+* 1、去[蓝奏云](https://up.woozooo.com/) 注册一个帐号
+* 2、Project 窗口 右键 选择 Create/Lanzou Cookie
+* 3、获取 Lanzou Cookie 配置 ylogin（7位数字） phpdisk_info（很长一串） [如何获取 Cookie](https://blog.csdn.net/u011781521/article/details/87791125)
+* 4、选择 创建 的 Lanzou Cookie 填写 好配置
+* 5、双击 配置好的 Lanzou Cookie 即可打开窗口 使用
 # 免责声明
 
 - 本项目仅供个人学习使用，严禁用于商业用途
