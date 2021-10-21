@@ -305,7 +305,7 @@ namespace LanZouWindow
                 pageStart += set.pageCountOnce;
                 freshing = true;
                 var id = current.id;
-                var fs = await lzy.GetFileList(id, pageStart, pageStart + set.pageCountOnce - 1);
+                var fs = await lzy.GetFileList(id, pageStart, set.pageCountOnce);
                 data.FreshFolder(id, null, fs.files, false);
                 current = data.FindFolderById(id);
                 freshing = false;
@@ -315,7 +315,7 @@ namespace LanZouWindow
                 freshing = true;
                 pageStart = 1;
                 var ds = await lzy.GetFolderList(id);
-                var fs = await lzy.GetFileList(id, pageStart, pageStart + set.pageCountOnce-1);
+                var fs = await lzy.GetFileList(id, pageStart,set.pageCountOnce);
                 data.FreshFolder(id, ds.folders, fs.files,true);
                 if (current!=null &&current.id==id)
                 {
