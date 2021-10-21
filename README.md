@@ -18,9 +18,10 @@
 # 如何使用
 * 1、在[蓝奏云官网](https://up.woozooo.com/) 注册一个帐号
 * 2、在 Project 窗口 右键 选择 Create/Lanzou Cookie
-* 3、获取 Lanzou Cookie 配置 ylogin（7位数字） phpdisk_info（很长一串） [如何获取 Cookie](https://blog.csdn.net/u011781521/article/details/87791125)
+* 3、获取 Lanzou Cookie 配置 ylogin（7位数字） phpdisk_info（很长一串） [帮助1](https://blog.csdn.net/u011781521/article/details/87791125) [帮助2](https://bbs.zsxwz.com/thread-2505.html)
 * 4、选择 创建 的 Lanzou Cookie 填写 好配置
 * 5、双击 配置好的 Lanzou Cookie 即可打开窗口 使用
+
 ![基础](https://github.com/OnClick9927/LanzouDisk/blob/main/Pics/1.png)
 ![设置](https://github.com/OnClick9927/LanzouDisk/blob/main/Pics/2.png)
 ![上传](https://github.com/OnClick9927/LanzouDisk/blob/main/Pics/3.png)
