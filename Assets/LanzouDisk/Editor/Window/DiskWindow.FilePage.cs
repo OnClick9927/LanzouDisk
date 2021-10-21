@@ -123,15 +123,17 @@ namespace LanZouWindow
                             using (new EditorGUI.DisabledGroupScope(true))
                             {
                                 GUILayout.Label(Contents.path, GUILayout.Width(30));
-
                                 GUILayout.TextField(tool.GetCurrentPath(), GUILayout.ExpandWidth(true));
-                                if (tool.freshing)
+                            }
+                            if (tool.freshing)
+                            {
+                                GUILayout.Label(Contents.GetFreshing(), GUILayout.Width(40));
+                            }
+                            else
+                            {
+                                if (GUILayout.Button(Contents.loadmore,EditorStyles.toolbarButton,GUILayout.Width(40)))
                                 {
-                                    GUILayout.Label(Contents.GetFreshing(), GUILayout.Width(30));
-                                }
-                                else
-                                {
-                                    GUILayout.Space(30);
+                                    tool.LoadMore();
                                 }
                             }
 

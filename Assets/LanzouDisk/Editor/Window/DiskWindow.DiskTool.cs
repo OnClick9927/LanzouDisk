@@ -176,9 +176,10 @@ namespace LanZouWindow
                 {
                     return allfiles.FindAll(_data => { return _data.pid == folderid; });
                 }
-                public void FreshFolder(long id, List<CloudFolder> folders, List<CloudFile> fs)
+                public void FreshFolder(long id, List<CloudFolder> folders, List<CloudFile> fs,bool clearLast)
                 {
-                    LoopRemoveSubFoldersAndFiles(id);
+                    if (clearLast)
+                        LoopRemoveSubFoldersAndFiles(id);
                     FolderData parent = FindFolderById(id);
                     if (parent == null) return;
                     if (folders != null)
@@ -249,6 +250,7 @@ namespace LanZouWindow
                 }
             }
 
+   
 
             public List<FolderData> GetSubFolders(long folderid)
             {
@@ -297,12 +299,24 @@ namespace LanZouWindow
             {
                 FreshView?.Invoke(current);
             }
+            private int pageStart = 1;
+            public async void LoadMore()
+            {
+                pageStart += set.pageCountOnce;
+                freshing = true;
+                var id = current.id;
+                var fs = await lzy.GetFileList(id, pageStart, pageStart + set.pageCountOnce - 1);
+                data.FreshFolder(id, null, fs.files, false);
+                current = data.FindFolderById(id);
+                freshing = false;
+            }
             public async Task FreshFolder(long id)
             {
                 freshing = true;
+                pageStart = 1;
                 var ds = await lzy.GetFolderList(id);
-                var fs = await lzy.GetFileList(id);
-                data.FreshFolder(id, ds.folders, fs.files);
+                var fs = await lzy.GetFileList(id, pageStart, pageStart + set.pageCountOnce-1);
+                data.FreshFolder(id, ds.folders, fs.files,true);
                 if (current!=null &&current.id==id)
                 {
                     current = data.FindFolderById(id);
@@ -315,7 +329,7 @@ namespace LanZouWindow
                 var ds = await lzy.GetFolderList(id);
                 if (ds.folders!=null)
                 {
-                    data.FreshFolder(id, ds.folders, null);
+                    data.FreshFolder(id, ds.folders, null,true);
                     foreach (var item in ds.folders)
                     {
                         await FreshFolderList(item.id);

@@ -13,7 +13,7 @@
             public string NewFolderDesc;
             public bool showDownLoadList = true;
             public bool showUpLoadList = true;
-
+            public int pageCountOnce = 30;
         }
 
     }

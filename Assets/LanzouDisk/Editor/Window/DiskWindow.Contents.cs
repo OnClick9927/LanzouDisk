@@ -37,8 +37,10 @@ namespace LanZouWindow
             public static GUIContent uploadOverWriteLabel = new GUIContent("Upload File OverWrite", "上传文件重写");
             public static GUIContent NewFolderDescLabel = new GUIContent("New Folder Desciption", "新建文件夹描述");
             public static GUIContent NewFolderNameLabel = new GUIContent("New Folder Name", "新建文件夹名称");
+            public static GUIContent pagecountlabel = new GUIContent() { tooltip = "一次读取文件几页文件\n一页18个", text = "Read Page Count Once" };
             public static GUIContent help = EditorGUIUtility.IconContent("_Help");
             public static GUIContent web = EditorGUIUtility.IconContent("d_BuildSettings.Web.Small");
+            public static GUIContent loadmore = new GUIContent(EditorGUIUtility.IconContent("DotFrameDotted")) { tooltip = "加载更多文件", text = "..." };
 
             public static GUIContent GetFolder(string name)
             {

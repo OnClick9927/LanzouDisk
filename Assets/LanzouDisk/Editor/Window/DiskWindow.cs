@@ -88,6 +88,7 @@ namespace LanZouWindow
                     }
                 }
                 GUILayout.EndHorizontal();
+                set.pageCountOnce = EditorGUILayout.IntField(Contents.pagecountlabel, set.pageCountOnce);
                 set.downloadOverWrite = EditorGUILayout.Toggle(Contents.downloadOverWriteLabel, set.downloadOverWrite);
                 set.uploadOverWrite = EditorGUILayout.Toggle(Contents.uploadOverWriteLabel, set.uploadOverWrite);
                 set.NewFolderName = EditorGUILayout.TextField(Contents.NewFolderNameLabel, set.NewFolderName);
