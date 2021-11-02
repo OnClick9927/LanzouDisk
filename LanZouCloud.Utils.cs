@@ -29,7 +29,7 @@ namespace LanZouCloudAPI
         /// </summary>
         /// <param name="share_url"></param>
         /// <returns></returns>
-        private async Task<bool> is_file_url(string share_url)
+        private async Task<bool> is_share_url(string share_url)
         {
             var base_pat = "https?://[a-zA-Z0-9-]*?\\.?lanzou[sixw].com/.+";  // 子域名可个性化设置或者不存在
             var user_pat = "https?://[a-zA-Z0-9-]*?\\.?lanzou[sixw].com/i[a-zA-Z0-9]{5,}/?";  // 普通用户 URL 规则
@@ -127,6 +127,7 @@ namespace LanZouCloudAPI
 
         private static readonly string _network_error_msg = "Network error, please retry later";
         private static readonly string _not_login_msg = "You are not login, please login and retry";
+        private static readonly string _task_canceled_msg = "Task was canceled";
         private static readonly string _success_msg = "Success";
 
         /// <summary>

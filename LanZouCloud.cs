@@ -1,4 +1,4 @@
-using LitJson;
+﻿using LitJson;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LanZouCloudAPI
@@ -52,7 +53,7 @@ namespace LanZouCloudAPI
             else
             {
                 var json = JsonMapper.ToObject(text);
-                if (!json.ContainsKey("info"))  // 新注册用户无数据, info=None
+                if (!json.ContainsKey("info") || json["info"] == null)  // 新注册用户无数据, info=null
                 {
                     Log("New user has no move folders", LogLevel.Warning, nameof(GetMoveFolders));
                     result = new MoveFolderList(LanZouCode.SUCCESS, _success_msg, folders);
@@ -225,8 +226,8 @@ namespace LanZouCloudAPI
         /// <para>官方默认每页 18 条数据</para>
         /// </summary>
         /// <param name="folder_id">文件夹ID，默认值 -1 表示根路径</param>
-        /// <param name="page_begin">开始页，1 为起始页</param>
-        /// <param name="page_count">获取页数，默认 -1 表示所有</param>
+        /// <param name="page_begin">开始页码，默认值 1 为起始页</param>
+        /// <param name="page_count">获取页数，默认值 -1 表示所有</param>
         /// <returns></returns>
         public async Task<CloudFileList> GetFileList(long folder_id = -1, int page_begin = 1, int page_count = -1)
         {
@@ -348,12 +349,12 @@ namespace LanZouCloudAPI
         /// 通过文件夹ID，获取文件夹及其子文件信息
         /// </summary>
         /// <param name="folder_id">文件夹ID</param>
-        /// <param name="page_begin">开始页数，1为起始页</param>
-        /// <param name="page_end">结束页数（包含）</param>
+        /// <param name="page_begin">开始页码，默认值 1 为起始页</param>
+        /// <param name="page_count">获取页数，默认值 -1 表示全部</param>
         /// <returns></returns>
-        public async Task<CloudFolderInfo> GetFolderInfo(long folder_id, int page_begin = 1, int page_end = 99)
+        public async Task<CloudFolderInfo> GetFolderInfo(long folder_id, int page_begin = 1, int page_count = -1)
         {
-            LogInfo($"Get folder info of folder id: {folder_id}, page begin: {page_begin}, page end: {page_end}", nameof(GetFolderInfo));
+            LogInfo($"Get folder info of folder id: {folder_id}, begin page : {page_begin}, count: {page_count}", nameof(GetFolderInfo));
 
             CloudFolderInfo result;
 
@@ -364,7 +365,7 @@ namespace LanZouCloudAPI
             }
             else
             {
-                result = await GetFolderInfoByUrl(_share.url, _share.password, page_begin, page_end);
+                result = await GetFolderInfoByUrl(_share.url, _share.password, page_begin, page_count);
             }
 
             LogResult(result, nameof(GetFolderInfo));
@@ -398,13 +399,13 @@ namespace LanZouCloudAPI
                 // 有效性校验
                 if (f_info.ContainsKey("f_id") && f_info["f_id"].ToString() == "i")
                 {
-                    result = new ShareInfo(LanZouCode.ID_ERROR, "ID校验失败");
+                    result = new ShareInfo(LanZouCode.FAILED, "ID校验失败");
                 }
                 else
                 {
                     // onof=1 时，存在有效的提取码; onof=0 时不存在提取码，但是 pwd 字段还是有一个无效的随机密码
                     var pwd = f_info["onof"].ToString() == "1" ? f_info["pwd"].ToString() : "";
-                    var url = f_info["is_newd"] + "//" + f_info["f_id"];        // 文件的分享链接需要拼凑
+                    var url = f_info["is_newd"] + "/" + f_info["f_id"];        // 文件的分享链接需要拼凑
                     var post_data_1 = _post_data("task", $"{12}", "file_id", $"{file_id}");
                     var _text = await _post_text(_doupload_url, post_data_1);   // 文件信息
                     var __res = _get_result(_text);
@@ -455,7 +456,7 @@ namespace LanZouCloudAPI
                 // 有效性校验
                 if (f_info.ContainsKey("name") && string.IsNullOrEmpty(f_info["name"].ToString()))
                 {
-                    result = new ShareInfo(LanZouCode.ID_ERROR, "Name校验失败");
+                    result = new ShareInfo(LanZouCode.FAILED, "Name校验失败");
                 }
                 else
                 {
@@ -812,7 +813,8 @@ namespace LanZouCloudAPI
         /// <param name="progress"></param>
         /// <returns></returns>
         public async Task<DownloadInfo> DownloadFile(long file_id, string save_dir,
-            bool overwrite = false, IProgress<ProgressInfo> progress = null)
+            bool overwrite = false, IProgress<ProgressInfo> progress = null,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             save_dir = Path.GetFullPath(save_dir);
             save_dir = save_dir.Replace("\\", "/");
@@ -827,7 +829,7 @@ namespace LanZouCloudAPI
             }
             else
             {
-                result = await DownloadFileByUrl(share.url, save_dir, share.password, overwrite, progress);
+                result = await DownloadFileByUrl(share.url, save_dir, share.password, overwrite, progress, cancellationToken);
             }
 
             LogResult(result, nameof(DownloadFile));
@@ -841,8 +843,8 @@ namespace LanZouCloudAPI
         /// <param name="folder_id"></param>
         /// <param name="overwrite"></param>
         /// <param name="progress"></param>
-        public async Task<UploadInfo> UploadFile(string file_path, long folder_id = -1, bool overwrite = false,
-            IProgress<ProgressInfo> progress = null)
+        public async Task<UploadInfo> UploadFile(string file_path, string custom_filename = null, long folder_id = -1, bool overwrite = false,
+            IProgress<ProgressInfo> progress = null, CancellationToken cancellationToken = default(CancellationToken))
         {
             file_path = Path.GetFullPath(file_path);
             file_path = file_path.Replace("\\", "/");
@@ -851,14 +853,15 @@ namespace LanZouCloudAPI
 
             UploadInfo result = null;
 
+            var filename = name_format(custom_filename ?? Path.GetFileName(file_path));
+
             if (!File.Exists(file_path))
             {
-                result = new UploadInfo(LanZouCode.PATH_ERROR, $"File not found: {file_path}", Path.GetFileName(file_path), file_path);
+                result = new UploadInfo(LanZouCode.PATH_ERROR, $"File not found: {file_path}", filename, file_path);
                 LogResult(result, nameof(UploadFile));
                 return result;
             }
 
-            var filename = name_format(Path.GetFileName(file_path));
             var file_size = new FileInfo(file_path).Length;
 
             var p_start = new ProgressInfo(ProgressState.Start, filename, 0, file_size);
@@ -868,7 +871,7 @@ namespace LanZouCloudAPI
             {
                 result = new UploadInfo(LanZouCode.OFFICIAL_LIMITED, $"上传超过最大文件大小({_max_size}MB): {file_path}", filename, file_path);
             }
-            else if (!is_name_valid(file_path))
+            else if (!is_name_valid(filename))
             {
                 // 不允许上传的格式
                 result = new UploadInfo(LanZouCode.OFFICIAL_LIMITED, $"文件后缀名不符合官方限制: {file_path}", filename, file_path);
@@ -914,6 +917,9 @@ namespace LanZouCloudAPI
 
             var upload_url = "https://pc.woozooo.com/fileup.php";
 
+            bool isCanceled = false;
+            bool isUploadSuccess = false;
+
             for (int i = 0; i < http_retries; i++)
             {
                 try
@@ -928,26 +934,19 @@ namespace LanZouCloudAPI
                         _content.Add(new StringContent(filename, Encoding.UTF8), "name");
                         _content.Add(new UTF8EncodingStreamContent(fileStream, "upload_file", filename));
 
-                        HttpContent content;
-                        if (progress != null)
+                        var p_uploading = new ProgressInfo(ProgressState.Progressing, filename, 0, file_size);
+                        var content = new ProgressableStreamContent(_content, _chunk_size, (_current, _total) =>
                         {
-                            var p_uploading = new ProgressInfo(ProgressState.Progressing, filename, 0, file_size);
-                            content = new ProgressableStreamContent(_content, _chunk_size, (_current, _total) =>
-                            {
-                                p_uploading.current = _current;
-                                p_uploading.total = _total;
-                                progress?.Report(p_uploading);
-                            });
-                        }
-                        else
-                        {
-                            content = _content;
-                        }
+                            p_uploading.current = _current;
+                            p_uploading.total = _total;
+                            progress?.Report(p_uploading);
+                        }, cancellationToken);
+
                         using (content)
                         {
                             using (var client = _get_client(null, 3600))
                             {
-                                using (var resp = await client.PostAsync(upload_url, content))
+                                using (var resp = await client.PostAsync(upload_url, content, cancellationToken))
                                 {
                                     resp.EnsureSuccessStatusCode();
                                     text = await resp.Content.ReadAsStringAsync();
@@ -955,6 +954,13 @@ namespace LanZouCloudAPI
                             }
                         }
                     }
+                    isUploadSuccess = true;
+                    break;
+                }
+                catch (TaskCanceledException)
+                {
+                    isCanceled = true;
+                    Log($"Http Canceled", LogLevel.Info, nameof(UploadFile));
                     break;
                 }
                 catch (Exception ex)
@@ -964,8 +970,12 @@ namespace LanZouCloudAPI
                 }
             }
 
-            var _res = _get_result(text);
-            if (_res.code != LanZouCode.SUCCESS)
+            Result _res = null;
+            if (!isUploadSuccess && isCanceled)
+            {
+                result = new UploadInfo(LanZouCode.TASK_CANCELED, _task_canceled_msg, filename, file_path);
+            }
+            else if ((_res = _get_result(text)).code != LanZouCode.SUCCESS)
             {
                 result = new UploadInfo(_res.code, _res.message, filename, file_path);
             }
@@ -996,7 +1006,8 @@ namespace LanZouCloudAPI
         #region Public APIs （无需登录）
 
         /// <summary>
-        /// 通过分享链接，下载文件(需提取码)
+        /// <para>通过分享链接，下载文件(需提取码)</para>
+        /// <para>此接口无需登录</para>
         /// </summary>
         /// <param name="share_url"></param>
         /// <param name="save_dir"></param>
@@ -1005,7 +1016,8 @@ namespace LanZouCloudAPI
         /// <param name="progress">用于显示下载进度</param>
         /// <returns></returns>
         public async Task<DownloadInfo> DownloadFileByUrl(string share_url, string save_dir,
-            string pwd = "", bool overwrite = false, IProgress<ProgressInfo> progress = null)
+            string pwd = "", bool overwrite = false, IProgress<ProgressInfo> progress = null,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             save_dir = Path.GetFullPath(save_dir);
             save_dir = save_dir.Replace("\\", "/");
@@ -1018,11 +1030,7 @@ namespace LanZouCloudAPI
             var p_start = new ProgressInfo(ProgressState.Start);
             progress?.Report(p_start);
 
-            if (!await is_file_url(share_url))
-            {
-                result = new DownloadInfo(LanZouCode.URL_INVALID, $"Invalid url: {share_url}", share_url);
-            }
-            else if ((file_info = await GetFileInfoByUrl(share_url, pwd)).code != LanZouCode.SUCCESS)
+            if ((file_info = await GetFileInfoByUrl(share_url, pwd)).code != LanZouCode.SUCCESS)
             {
                 result = new DownloadInfo(file_info.code, file_info.message, share_url);
             }
@@ -1034,7 +1042,7 @@ namespace LanZouCloudAPI
             }
 
             // 只请求头
-            var _con_len = (await _get_headers(file_info.durl))?.ContentLength;
+            var _con_len = (await _get_content_length(file_info.durl));
 
             // 对于 txt 文件, 可能出现没有 Content-Length 的情况
             // 此时文件需要下载一次才会出现 Content-Length
@@ -1055,17 +1063,23 @@ namespace LanZouCloudAPI
                                 var _buffer = new byte[1];
                                 var max_retries = 5;  // 5 次拿不到就算了
 
-                                while (_con_len == null && max_retries > 0)
+                                while (_con_len == null && max_retries > 0
+                                    && !cancellationToken.IsCancellationRequested)
                                 {
                                     max_retries -= 1;
-                                    await _stream.ReadAsync(_buffer, 0, 1);
+                                    await _stream.ReadAsync(_buffer, 0, 1, cancellationToken);
 
                                     // 再请求一次试试，只请求头
-                                    _con_len = (await _get_headers(file_info.durl))?.ContentLength;
+                                    _con_len = (await _get_content_length(file_info.durl));
                                     Log($"Retry to get Content-Length: {_con_len}", LogLevel.Info, nameof(DownloadFileByUrl));
                                 }
                             }
                         }
+                        break;
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        Log($"Http Canceled", LogLevel.Info, nameof(DownloadFileByUrl));
                         break;
                     }
                     catch (Exception ex)
@@ -1074,6 +1088,13 @@ namespace LanZouCloudAPI
                         if (i < http_retries) Log($"Retry({i + 1}): {file_info.durl}", LogLevel.Info, nameof(DownloadFileByUrl));
                     }
                 }
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                result = new DownloadInfo(LanZouCode.TASK_CANCELED, _task_canceled_msg);
+                LogResult(result, nameof(DownloadFileByUrl));
+                return result;
             }
 
             // 应该不会出现这种情况
@@ -1126,6 +1147,7 @@ namespace LanZouCloudAPI
             var p_ready = new ProgressInfo(ProgressState.Ready, filename, now_size, content_length);
             progress?.Report(p_ready);
             bool isDownloadSuccess = false;
+            bool isCanceled = false;
 
             if (is_downloaded)
             {
@@ -1160,9 +1182,9 @@ namespace LanZouCloudAPI
                                     using (var fileStream = new FileStream(tmp_file_path, FileMode.Append,
                                          FileAccess.Write, FileShare.Read, chunk_size))
                                     {
-                                        while (true)
+                                        while (!cancellationToken.IsCancellationRequested)
                                         {
-                                            var readLength = await netStream.ReadAsync(chunk, 0, chunk_size);
+                                            var readLength = await netStream.ReadAsync(chunk, 0, chunk_size, cancellationToken);
                                             if (readLength == 0)
                                                 break;
 
@@ -1179,6 +1201,12 @@ namespace LanZouCloudAPI
                             isDownloadSuccess = true;
                             break;
                         }
+                        catch (TaskCanceledException)
+                        {
+                            isCanceled = true;
+                            Log($"Http Canceled", LogLevel.Info, nameof(DownloadFileByUrl));
+                            break;
+                        }
                         catch (Exception ex)
                         {
                             Log($"Http Error: {ex.Message}", LogLevel.Error, nameof(DownloadFileByUrl));
@@ -1189,9 +1217,13 @@ namespace LanZouCloudAPI
                 });
             }
 
-            if (!isDownloadSuccess)
+            if (!isDownloadSuccess && isCanceled)
             {
-                result = new DownloadInfo(LanZouCode.NETWORK_ERROR, "Download failed, retry over.");
+                result = new DownloadInfo(LanZouCode.TASK_CANCELED, _task_canceled_msg);
+            }
+            else if (!isDownloadSuccess && !isCanceled)
+            {
+                result = new DownloadInfo(LanZouCode.NETWORK_ERROR, "Download failed, retry failed.");
             }
             else
             {
@@ -1219,7 +1251,8 @@ namespace LanZouCloudAPI
         }
 
         /// <summary>
-        /// 通过文件分享链接，获取文件各种信息(包括下载直链，需提取码)
+        /// <para>通过文件分享链接，获取文件各种信息(包括下载直链，需提取码)</para>
+        /// <para>此接口无需登录</para>
         /// </summary>
         /// <param name="share_url">文件分享链接</param>
         /// <param name="pwd">文件提取码(如果有的话)</param>
@@ -1231,7 +1264,7 @@ namespace LanZouCloudAPI
             CloudFileInfo result = null;
             string first_page = null;
 
-            if (!await is_file_url(share_url))  // 非文件链接返回错误
+            if (!await is_share_url(share_url))
             {
                 result = new CloudFileInfo(LanZouCode.URL_INVALID, $"Invalid url: {share_url}", pwd, share_url);
             }
@@ -1262,7 +1295,7 @@ namespace LanZouCloudAPI
             first_page = remove_notes(first_page);  // 去除网页里的注释
             if (first_page.Contains("文件取消") || first_page.Contains("文件不存在"))
             {
-                result = new CloudFileInfo(LanZouCode.FILE_CANCELLED, $"文件取消或不存在: {share_url}", pwd, share_url);
+                result = new CloudFileInfo(LanZouCode.FILE_CANCELLED, $"文件取消分享或不存在: {share_url}", pwd, share_url);
                 LogResult(result, nameof(GetFileInfoByUrl));
                 return result;
             }
@@ -1275,11 +1308,13 @@ namespace LanZouCloudAPI
             string f_type;
 
             // 这里获取下载直链 304 重定向前的链接
-            if (first_page.Contains("id=\"pwdload\"") || first_page.Contains("id=\"passwddiv\""))   // 文件设置了提取码时
+            // 文件设置了提取码时
+            if (first_page.Contains("id=\"pwdload\"") || first_page.Contains("id=\"passwddiv\""))
             {
                 if (string.IsNullOrEmpty(pwd))
                 {
-                    result = new CloudFileInfo(LanZouCode.LACK_PASSWORD, $"分享链接需要提取码: {share_url}", pwd, share_url);  // 没给提取码直接退出
+                    // 没给提取码直接退出
+                    result = new CloudFileInfo(LanZouCode.LACK_PASSWORD, $"分享链接需要提取码: {share_url}", pwd, share_url);
                     LogResult(result, nameof(GetFileInfoByUrl));
                     return result;
                 }
@@ -1448,11 +1483,12 @@ namespace LanZouCloudAPI
         /// <summary>
         /// <para>通过分享链接，获取文件夹及其子文件信息（需提取码）</para>
         /// <para>官方默认每页 50 条数据</para>
+        /// <para>此接口无需登录</para>
         /// </summary>
         /// <param name="share_url">分享链接</param>
         /// <param name="pwd">提取码</param>
-        /// <param name="page_begin">开始页数，1 为起始页</param>
-        /// <param name="page_count">获取页数，默认 -1 表示所有</param>
+        /// <param name="page_begin">开始页码，默认值 1 为起始页</param>
+        /// <param name="page_count">获取页数，默认值 -1 表示所有</param>
         /// <returns></returns>
         public async Task<CloudFolderInfo> GetFolderInfoByUrl(string share_url, string pwd = "", int page_begin = 1, int page_count = -1)
         {
@@ -1460,7 +1496,7 @@ namespace LanZouCloudAPI
 
             CloudFolderInfo result = null;
 
-            if (await is_file_url(share_url))
+            if (await is_share_url(share_url))
             {
                 result = new CloudFolderInfo(LanZouCode.URL_INVALID, $"Invalid url: {share_url}");
                 LogResult(result, nameof(GetFolderInfoByUrl));
@@ -1474,7 +1510,7 @@ namespace LanZouCloudAPI
             }
             else if (html.Contains("文件不存在") || html.Contains("文件取消"))
             {
-                result = new CloudFolderInfo(LanZouCode.FILE_CANCELLED, "文件取消或不存在");
+                result = new CloudFolderInfo(LanZouCode.FILE_CANCELLED, "文件取消分享或不存在");
             }
             // 要求输入密码, 用户描述中可能带有"输入密码",所以不用这个字符串判断
             else if (string.IsNullOrEmpty(pwd) && (html.Contains("id=\"pwdload\"") || html.Contains("id=\"passwddiv\"")))
