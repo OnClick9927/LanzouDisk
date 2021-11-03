@@ -601,7 +601,7 @@ namespace LanZouWindow
             }
             private async Task UpLoadFile(string file_path, long folder_id = -1, IProgress<ProgressInfo> progress = null)
             {
-                var code = await lzy.UploadFile(file_path, "",folder_id, set.uploadOverWrite, progress);
+                var code = await lzy.UploadFile(file_path, null, folder_id, set.uploadOverWrite, progress);
                 if (code.code == LanZouCode.SUCCESS)
                 {
                     await FreshFolder(folder_id);
@@ -634,7 +634,7 @@ namespace LanZouWindow
                 // 上传子文件
                 foreach (var fi in Directory.GetFiles(file_path))
                 {
-                    var upload = await lzy.UploadFile(fi, "",result.id, set.uploadOverWrite, progress);
+                    var upload = await lzy.UploadFile(fi, null,result.id, set.uploadOverWrite, progress);
                     if (upload.code == LanZouCode.SUCCESS)
                     {
                         // 应该不需要刷新吧
